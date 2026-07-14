@@ -1,0 +1,28 @@
+//go:build !android
+
+package iface
+
+import (
+	"golang.zx2c4.com/wireguard/tun/netstack"
+
+	wgdevice "golang.zx2c4.com/wireguard/device"
+
+	"github.com/Artee VPNio/Artee VPN/client/iface/device"
+	"github.com/Artee VPNio/Artee VPN/client/iface/udpmux"
+	"github.com/Artee VPNio/Artee VPN/client/iface/wgaddr"
+)
+
+type WGTunDevice interface {
+	Create() (device.WGConfigurer, error)
+	Up() (*udpmux.UniversalUDPMuxDefault, error)
+	UpdateAddr(address wgaddr.Address) error
+	WgAddress() wgaddr.Address
+	MTU() uint16
+	DeviceName() string
+	Close() error
+	FilteredDevice() *device.FilteredDevice
+	Device() *wgdevice.Device
+	GetNet() *netstack.Net
+	GetICEBind() device.EndpointManager
+}
+

@@ -1,0 +1,37 @@
+version: 2
+
+project_name: Artee VPN-ui
+builds:
+  - id: Artee VPN-ui-darwin
+    dir: client/ui
+    binary: Artee VPN-ui
+    env:
+      - CGO_ENABLED=1
+      - MACOSX_DEPLOYMENT_TARGET=11.0
+      - MACOS_DEPLOYMENT_TARGET=11.0
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    gomips:
+      - hardfloat
+      - softfloat
+    ldflags:
+      - -s -w -X github.com/Artee VPNio/Artee VPN/version.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.CommitDate}} -X main.builtBy=goreleaser
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    tags:
+      - load_wgnt_from_rsrc
+
+universal_binaries:
+  - id: Artee VPN-ui-darwin
+
+archives:
+  - builds:
+      - Artee VPN-ui-darwin
+
+checksum:
+  name_template: "{{ .ProjectName }}_darwin_checksums.txt"
+changelog:
+  disable: true
+

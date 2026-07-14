@@ -1,0 +1,121 @@
+version: 2
+env:
+  - SKIP_PUBLISH={{ if index .Env "SKIP_PUBLISH" }}{{ .Env.SKIP_PUBLISH }}{{ else }}true{{ end }}
+project_name: Artee VPN-ui
+builds:
+  - id: Artee VPN-ui
+    dir: client/ui
+    binary: Artee VPN-ui
+    env:
+      - CGO_ENABLED=1
+    goos:
+      - linux
+    goarch:
+      - amd64
+    ldflags:
+      - -s -w -X github.com/Artee VPNio/Artee VPN/version.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.CommitDate}} -X main.builtBy=goreleaser
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+  - id: Artee VPN-ui-windows-amd64
+    dir: client/ui
+    binary: Artee VPN-ui
+    env:
+      - CGO_ENABLED=1
+      - CC=x86_64-w64-mingw32-gcc
+    goos:
+      - windows
+    goarch:
+      - amd64
+    ldflags:
+      - -s -w -X github.com/Artee VPNio/Artee VPN/version.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.CommitDate}} -X main.builtBy=goreleaser
+      - -H windowsgui
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+  - id: Artee VPN-ui-windows-arm64
+    dir: client/ui
+    binary: Artee VPN-ui
+    env:
+      - CGO_ENABLED=1
+      - CC=aarch64-w64-mingw32-clang
+      - CXX=aarch64-w64-mingw32-clang++
+    goos:
+      - windows
+    goarch:
+      - arm64
+    ldflags:
+      - -s -w -X github.com/Artee VPNio/Artee VPN/version.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.CommitDate}} -X main.builtBy=goreleaser
+      - -H windowsgui
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: linux-arch
+    name_template: "{{ .ProjectName }}-linux_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    builds:
+      - Artee VPN-ui
+  - id: windows-arch
+    name_template: "{{ .ProjectName }}-windows_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    builds:
+      - Artee VPN-ui-windows-amd64
+      - Artee VPN-ui-windows-arm64
+
+nfpms:
+  - maintainer: Artee VPN <dev@Artee VPN.io>
+    description: Artee VPN client UI.
+    homepage: https://Artee VPN.io/
+    id: Artee VPN_ui_deb
+    package_name: Artee VPN-ui
+    builds:
+      - Artee VPN-ui
+    formats:
+      - deb
+    scripts:
+      postinstall: "release_files/ui-post-install.sh"
+    contents:
+      - src: client/ui/build/Artee VPN.desktop
+        dst: /usr/share/applications/Artee VPN.desktop
+      - src: client/ui/assets/Artee VPN.png
+        dst: /usr/share/pixmaps/Artee VPN.png
+    dependencies:
+      - Artee VPN
+
+  - maintainer: Artee VPN <dev@Artee VPN.io>
+    description: Artee VPN client UI.
+    homepage: https://Artee VPN.io/
+    id: Artee VPN_ui_rpm
+    package_name: Artee VPN-ui
+    builds:
+      - Artee VPN-ui
+    formats:
+      - rpm
+    scripts:
+      postinstall: "release_files/ui-post-install.sh"
+    contents:
+      - src: client/ui/build/Artee VPN.desktop
+        dst: /usr/share/applications/Artee VPN.desktop
+      - src: client/ui/assets/Artee VPN.png
+        dst: /usr/share/pixmaps/Artee VPN.png
+    dependencies:
+      - Artee VPN
+    rpm:
+      signature:
+        key_file: '{{ if index .Env "GPG_RPM_KEY_FILE" }}{{ .Env.GPG_RPM_KEY_FILE }}{{ end }}'
+
+uploads:
+  - name: debian
+    skip: "{{ .Env.SKIP_PUBLISH }}"
+    ids:
+      - Artee VPN_ui_deb
+    mode: archive
+    target: https://pkgs.wiretrustee.com/debian/pool/{{ .ArtifactName }};deb.distribution=stable;deb.component=main;deb.architecture={{ if .Arm }}armhf{{ else }}{{ .Arch }}{{ end }};deb.package=
+    username: dev@wiretrustee.com
+    method: PUT
+
+  - name: yum
+    skip: "{{ .Env.SKIP_PUBLISH }}"
+    ids:
+      - Artee VPN_ui_rpm
+    mode: archive
+    target: https://pkgs.wiretrustee.com/yum/{{ .Arch }}{{ if .Arm }}{{ .Arm }}{{ end }}
+    username: dev@wiretrustee.com
+    method: PUT
+

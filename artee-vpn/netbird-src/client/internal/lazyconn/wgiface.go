@@ -1,0 +1,21 @@
+package lazyconn
+
+import (
+	"net"
+	"net/netip"
+	"time"
+
+	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
+
+	"github.com/Artee VPNio/Artee VPN/client/iface/wgaddr"
+	"github.com/Artee VPNio/Artee VPN/monotime"
+)
+
+type WGIface interface {
+	RemovePeer(peerKey string) error
+	UpdatePeer(peerKey string, allowedIps []netip.Prefix, keepAlive time.Duration, endpoint *net.UDPAddr, preSharedKey *wgtypes.Key) error
+	IsUserspaceBind() bool
+	Address() wgaddr.Address
+	LastActivities() map[string]monotime.Time
+}
+

@@ -1,0 +1,121 @@
+// Database Architecture - Prisma Schema
+// PostGIS spatial extensions, Multi-tenancy, Projects, AI Analyses, Permits
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis]
+}
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+// 1. Tenants (Multi-tenancy isolation)
+model Tenant {
+  id         String     @id @default(uuid()) @db.Uuid
+  name       String     @db.VarChar(255)
+  subdomain  String     @unique @db.VarChar(80)
+  createdAt  DateTime   @default(now()) @map("created_at")
+  users      User[]
+  properties Property[]
+
+  @@map("tenants")
+}
+
+// 2. Users (RBAC & Auth)
+model User {
+  id           String         @id @default(uuid()) @db.Uuid
+  tenantId     String         @map("tenant_id") @db.Uuid
+  email        String         @unique @db.VarChar(255)
+  passwordHash String         @map("password_hash") @db.VarChar(255)
+  role         String         @default("Estimator") @db.VarChar(50) // Admin, Estimator, Crew, Client
+  createdAt    DateTime       @default(now()) @map("created_at")
+  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  analyses     RoofAnalysis[]
+
+  @@map("users")
+}
+
+// 3. Properties (Assessor data & GIS parcel polygons)
+model Property {
+  id                String         @id @default(uuid()) @db.Uuid
+  tenantId          String         @map("tenant_id") @db.Uuid
+  address           String         @db.Text
+  formattedAddress  String?        @map("formatted_address") @db.VarChar(300)
+  latitude          Decimal        @db.Decimal(10, 7)
+  longitude         Decimal        @db.Decimal(10, 7)
+  
+  // PostGIS spatial geometry mapping (Polygon boundary or Point)
+  geometry          Unsupported("geometry(Geometry, 4326)")?
+  
+  ownerName         String?        @map("owner_name") @db.VarChar(255)
+  yearBuilt         Int?           @map("year_built")
+  lotSizeSqft       Decimal?       @map("lot_size_sqft") @db.Decimal(12, 2)
+  buildingSizeSqft  Decimal?       @map("building_size_sqft") @db.Decimal(12, 2)
+  assessedValue     Decimal?       @map("assessed_value") @db.Decimal(14, 2)
+  createdAt         DateTime       @default(now()) @map("created_at")
+  
+  tenant            Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  analyses          RoofAnalysis[]
+  permits           Permit[]
+
+  @@index([latitude, longitude], name: "idx_properties_lat_lng")
+  @@map("properties")
+}
+
+// 4. Roof Analyses (SAM/YOLO segment output & NREL solar yield)
+model RoofAnalysis {
+  id              String      @id @default(uuid()) @db.Uuid
+  propertyId      String      @map("property_id") @db.Uuid
+  analyzedById    String?     @map("analyzed_by") @db.Uuid
+  
+  // Detailed 3D roof plane MultiPolygon mapping
+  roofGeometry    Unsupported("geometry(MultiPolygon, 4326)")?
+  
+  roofAreaSqft    Decimal?    @map("roof_area_sqft") @db.Decimal(10, 2)
+  pitchDeg        Decimal?    @map("pitch_deg") @db.Decimal(5, 2)
+  conditionScore  Int?        @map("condition_score")
+  floodZone       String?     @map("flood_zone") @db.VarChar(10)
+  elevationFt     Decimal?    @map("elevation_ft") @db.Decimal(8, 2)
+  peakWindSpeed   Decimal?    @map("peak_wind_speed") @db.Decimal(5, 2)
+  solarYieldKwhYr Decimal?    @map("solar_yield_kwh_yr") @db.Decimal(12, 2)
+  aiRawPayload    Json?       @map("ai_raw_payload")
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  property        Property    @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  analyzedBy      User?       @relation(fields: [analyzedById], references: [id], onDelete: SetNull)
+  takeoffs        Takeoff[]
+
+  @@map("roof_analyses")
+}
+
+// 5. Building Permits
+model Permit {
+  id             String    @id @default(uuid()) @db.Uuid
+  propertyId     String    @map("property_id") @db.Uuid
+  permitNumber   String    @map("permit_number") @db.VarChar(100)
+  issueDate      DateTime? @map("issue_date") @db.Date
+  status         String    @db.VarChar(50)
+  description    String?   @db.Text
+  contractorName String?   @map("contractor_name") @db.VarChar(255)
+  property       Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@map("building_permits")
+}
+
+// 6. Procurement Takeoffs
+model Takeoff {
+  id           String       @id @default(uuid()) @db.Uuid
+  analysisId   String       @map("analysis_id") @db.Uuid
+  materialName String       @map("material_name") @db.VarChar(255)
+  category     String       @db.VarChar(100)
+  quantity     Decimal      @db.Decimal(10, 2)
+  unit         String       @db.VarChar(50)
+  unitCost     Decimal      @map("unit_cost") @db.Decimal(10, 2)
+  totalCost    Decimal      @map("total_cost") @db.Decimal(10, 2)
+  analysis     RoofAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@map("material_takeoffs")
+}

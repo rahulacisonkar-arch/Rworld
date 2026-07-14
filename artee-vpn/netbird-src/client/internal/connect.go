@@ -1,0 +1,731 @@
+package internal
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net"
+	"net/netip"
+	"path/filepath"
+	"runtime"
+	"runtime/debug"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"github.com/cenkalti/backoff/v4"
+	log "github.com/sirupsen/logrus"
+
+	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
+	"google.golang.org/grpc/codes"
+	gstatus "google.golang.org/grpc/status"
+
+	"github.com/Artee VPNio/Artee VPN/client/iface/wgaddr"
+
+	"github.com/Artee VPNio/Artee VPN/client/iface"
+	"github.com/Artee VPNio/Artee VPN/client/iface/device"
+	"github.com/Artee VPNio/Artee VPN/client/iface/netstack"
+	"github.com/Artee VPNio/Artee VPN/client/internal/dns"
+	"github.com/Artee VPNio/Artee VPN/client/internal/listener"
+	"github.com/Artee VPNio/Artee VPN/client/internal/metrics"
+	"github.com/Artee VPNio/Artee VPN/client/internal/peer"
+	"github.com/Artee VPNio/Artee VPN/client/internal/profilemanager"
+	"github.com/Artee VPNio/Artee VPN/client/internal/statemanager"
+	"github.com/Artee VPNio/Artee VPN/client/internal/stdnet"
+	"github.com/Artee VPNio/Artee VPN/client/internal/updater"
+	"github.com/Artee VPNio/Artee VPN/client/internal/updater/installer"
+	nbnet "github.com/Artee VPNio/Artee VPN/client/net"
+	cProto "github.com/Artee VPNio/Artee VPN/client/proto"
+	"github.com/Artee VPNio/Artee VPN/client/ssh"
+	sshconfig "github.com/Artee VPNio/Artee VPN/client/ssh/config"
+	"github.com/Artee VPNio/Artee VPN/client/system"
+	mgm "github.com/Artee VPNio/Artee VPN/shared/management/client"
+	mgmProto "github.com/Artee VPNio/Artee VPN/shared/management/proto"
+	"github.com/Artee VPNio/Artee VPN/shared/relay/auth/hmac"
+	relayClient "github.com/Artee VPNio/Artee VPN/shared/relay/client"
+	signal "github.com/Artee VPNio/Artee VPN/shared/signal/client"
+	"github.com/Artee VPNio/Artee VPN/util"
+	"github.com/Artee VPNio/Artee VPN/version"
+)
+
+// androidRunOverride is set on Android to inject mobile dependencies
+// when using embed.Client (which calls Run() with empty MobileDependency).
+var androidRunOverride func(c *ConnectClient, runningChan chan struct{}, logPath string) error
+
+type ConnectClient struct {
+	ctx            context.Context
+	runCancel      context.CancelFunc
+	runExited      chan struct{}
+	runOnce        sync.Once
+	runStarted     atomic.Bool
+	config         *profilemanager.Config
+	statusRecorder *peer.Status
+
+	engine        *Engine
+	engineMutex   sync.Mutex
+	clientMetrics *metrics.ClientMetrics
+	updateManager *updater.Manager
+
+	persistSyncResponse bool
+}
+
+func NewConnectClient(
+	ctx context.Context,
+	config *profilemanager.Config,
+	statusRecorder *peer.Status,
+) *ConnectClient {
+	// Derive the run context here so Stop owns the cancel that unblocks the run
+	// loop. runCancel is set once at construction, so Stop can call it without
+	// racing the run loop's startup. Callers therefore need not cancel before Stop.
+	runCtx, runCancel := context.WithCancel(ctx)
+	return &ConnectClient{
+		ctx:            runCtx,
+		runCancel:      runCancel,
+		runExited:      make(chan struct{}),
+		config:         config,
+		statusRecorder: statusRecorder,
+		engineMutex:    sync.Mutex{},
+	}
+}
+
+func (c *ConnectClient) SetUpdateManager(um *updater.Manager) {
+	c.updateManager = um
+}
+
+// Run with main logic.
+func (c *ConnectClient) Run(runningChan chan struct{}, logPath string) error {
+	if androidRunOverride != nil {
+		return androidRunOverride(c, runningChan, logPath)
+	}
+	return c.run(MobileDependency{}, runningChan, logPath)
+}
+
+// RunOnAndroid with main logic on mobile system
+func (c *ConnectClient) RunOnAndroid(
+	tunAdapter device.TunAdapter,
+	iFaceDiscover stdnet.ExternalIFaceDiscover,
+	networkChangeListener listener.NetworkChangeListener,
+	dnsAddresses []netip.AddrPort,
+	dnsReadyListener dns.ReadyListener,
+	stateFilePath string,
+	cacheDir string,
+) error {
+	// in case of non Android os these variables will be nil
+	mobileDependency := MobileDependency{
+		TunAdapter:            tunAdapter,
+		IFaceDiscover:         iFaceDiscover,
+		NetworkChangeListener: networkChangeListener,
+		HostDNSAddresses:      dnsAddresses,
+		DnsReadyListener:      dnsReadyListener,
+		StateFilePath:         stateFilePath,
+		TempDir:               cacheDir,
+	}
+	return c.run(mobileDependency, nil, "")
+}
+
+func (c *ConnectClient) RunOniOS(
+	fileDescriptor int32,
+	networkChangeListener listener.NetworkChangeListener,
+	dnsManager dns.IosDnsManager,
+	stateFilePath string,
+	cacheDir string,
+	logFilePath string,
+) error {
+	// Set GC percent to 5% to reduce memory usage as iOS only allows 50MB of memory for the extension.
+	debug.SetGCPercent(5)
+
+	mobileDependency := MobileDependency{
+		FileDescriptor:        fileDescriptor,
+		NetworkChangeListener: networkChangeListener,
+		DnsManager:            dnsManager,
+		StateFilePath:         stateFilePath,
+		TempDir:               cacheDir,
+	}
+	return c.run(mobileDependency, nil, logFilePath)
+}
+
+func (c *ConnectClient) run(mobileDependency MobileDependency, runningChan chan struct{}, logPath string) error {
+	// Mark the loop as started and signal exit on return so Stop can wait for
+	// the loop to finish (and skip the wait if the loop never ran).
+	c.runStarted.Store(true)
+	defer c.runOnce.Do(func() { close(c.runExited) })
+
+	defer func() {
+		if r := recover(); r != nil {
+			rec := c.statusRecorder
+			if rec != nil {
+				rec.PublishEvent(
+					cProto.SystemEvent_CRITICAL, cProto.SystemEvent_SYSTEM,
+					"panic occurred",
+					"The Artee VPN service panicked. Please restart the service and submit a bug report with the client logs.",
+					nil,
+				)
+			}
+
+			log.Panicf("Panic occurred: %v, stack trace: %s", r, string(debug.Stack()))
+		}
+	}()
+
+	// Stop metrics push on exit
+	defer func() {
+		if c.clientMetrics != nil {
+			c.clientMetrics.StopPush()
+		}
+	}()
+
+	log.Infof("starting Artee VPN client version %s on %s/%s", version.Artee VPNVersion(), runtime.GOOS, runtime.GOARCH)
+
+	nbnet.Init()
+
+	// Initialize metrics once at startup (always active for debug bundles)
+	if c.clientMetrics == nil {
+		agentInfo := metrics.AgentInfo{
+			DeploymentType: metrics.DeploymentTypeUnknown,
+			Version:        version.Artee VPNVersion(),
+			OS:             runtime.GOOS,
+			Arch:           runtime.GOARCH,
+		}
+		c.clientMetrics = metrics.NewClientMetrics(agentInfo)
+		log.Debugf("initialized client metrics")
+
+		// Start metrics push if enabled (uses daemon context, persists across engine restarts)
+		if metrics.IsMetricsPushEnabled() {
+			c.clientMetrics.StartPush(c.ctx, metrics.PushConfigFromEnv())
+		}
+	}
+
+	backOff := &backoff.ExponentialBackOff{
+		InitialInterval:     time.Second,
+		RandomizationFactor: 1,
+		Multiplier:          1.7,
+		MaxInterval:         15 * time.Second,
+		MaxElapsedTime:      3 * 30 * 24 * time.Hour, // 3 months
+		Stop:                backoff.Stop,
+		Clock:               backoff.SystemClock,
+	}
+
+	state := CtxGetState(c.ctx)
+	defer func() {
+		s, err := state.Status()
+		if err != nil || s != StatusNeedsLogin {
+			state.Set(StatusIdle)
+		}
+	}()
+
+	wrapErr := state.Wrap
+	myPrivateKey, err := wgtypes.ParseKey(c.config.PrivateKey)
+	if err != nil {
+		log.Errorf("failed parsing Wireguard key %s: [%s]", c.config.PrivateKey, err.Error())
+		return wrapErr(err)
+	}
+
+	var mgmTlsEnabled bool
+	if c.config.ManagementURL.Scheme == "https" {
+		mgmTlsEnabled = true
+	}
+
+	publicSSHKey, err := ssh.GeneratePublicKey([]byte(c.config.SSHKey))
+	if err != nil {
+		return err
+	}
+
+	var path string
+	if runtime.GOOS == "ios" || runtime.GOOS == "android" {
+		// On mobile, use the provided state file path directly
+		if !fileExists(mobileDependency.StateFilePath) {
+			if err := createFile(mobileDependency.StateFilePath); err != nil {
+				log.Errorf("failed to create state file: %v", err)
+				// we are not exiting as we can run without the state manager
+			}
+		}
+		path = mobileDependency.StateFilePath
+	} else {
+		sm := profilemanager.NewServiceManager("")
+		path = sm.GetStatePath()
+	}
+	stateManager := statemanager.New(path)
+	stateManager.RegisterState(&sshconfig.ShutdownState{})
+
+	if c.updateManager != nil {
+		c.updateManager.CheckUpdateSuccess(c.ctx)
+	}
+
+	inst := installer.New()
+	if err := inst.CleanUpInstallerFiles(); err != nil {
+		log.Errorf("failed to clean up temporary installer file: %v", err)
+	}
+
+	defer c.statusRecorder.ClientStop()
+	operation := func() error {
+		// if context cancelled we not start new backoff cycle
+		if c.ctx.Err() != nil {
+			return nil
+		}
+
+		state.Set(StatusConnecting)
+
+		engineCtx, cancel := context.WithCancel(c.ctx)
+		defer func() {
+			_, err := state.Status()
+			c.statusRecorder.MarkManagementDisconnected(err)
+			c.statusRecorder.CleanLocalPeerState()
+			cancel()
+		}()
+
+		log.Debugf("connecting to the Management service %s", c.config.ManagementURL.Host)
+		mgmClient, err := mgm.NewClient(engineCtx, c.config.ManagementURL.Host, myPrivateKey, mgmTlsEnabled)
+		if err != nil {
+			return wrapErr(gstatus.Errorf(codes.FailedPrecondition, "failed connecting to Management Service : %s", err))
+		}
+		mgmNotifier := statusRecorderToMgmConnStateNotifier(c.statusRecorder)
+		mgmClient.SetConnStateListener(mgmNotifier)
+
+		// Update metrics with actual deployment type after connection
+		deploymentType := metrics.DetermineDeploymentType(mgmClient.GetServerURL())
+		agentInfo := metrics.AgentInfo{
+			DeploymentType: deploymentType,
+			Version:        version.Artee VPNVersion(),
+			OS:             runtime.GOOS,
+			Arch:           runtime.GOARCH,
+		}
+		c.clientMetrics.UpdateAgentInfo(agentInfo, myPrivateKey.PublicKey().String())
+
+		log.Debugf("connected to the Management service %s", c.config.ManagementURL.Host)
+		defer func() {
+			if err = mgmClient.Close(); err != nil {
+				log.Warnf("failed to close the Management service client %v", err)
+			}
+		}()
+
+		// connect (just a connection, no stream yet) and login to Management Service to get an initial global Artee VPN config
+		loginStarted := time.Now()
+		loginResp, err := loginToManagement(engineCtx, mgmClient, publicSSHKey, c.config)
+		if err != nil {
+			c.clientMetrics.RecordLoginDuration(engineCtx, time.Since(loginStarted), false)
+			log.Debug(err)
+			if s, ok := gstatus.FromError(err); ok && (s.Code() == codes.PermissionDenied) {
+				state.Set(StatusNeedsLogin)
+				c.runCancel()
+				return backoff.Permanent(wrapErr(err)) // unrecoverable error
+			}
+			return wrapErr(err)
+		}
+		c.clientMetrics.RecordLoginDuration(engineCtx, time.Since(loginStarted), true)
+		c.statusRecorder.MarkManagementConnected()
+
+		localPeerState := peer.LocalPeerState{
+			IP:              loginResp.GetPeerConfig().GetAddress(),
+			PubKey:          myPrivateKey.PublicKey().String(),
+			KernelInterface: device.WireGuardModuleIsLoaded() && !netstack.IsEnabled(),
+			FQDN:            loginResp.GetPeerConfig().GetFqdn(),
+		}
+		c.statusRecorder.UpdateLocalPeerState(localPeerState)
+
+		signalURL := fmt.Sprintf("%s://%s",
+			strings.ToLower(loginResp.GetArtee VPNConfig().GetSignal().GetProtocol().String()),
+			loginResp.GetArtee VPNConfig().GetSignal().GetUri(),
+		)
+
+		c.statusRecorder.UpdateSignalAddress(signalURL)
+
+		c.statusRecorder.MarkSignalDisconnected(nil)
+		defer func() {
+			_, err := state.Status()
+			c.statusRecorder.MarkSignalDisconnected(err)
+		}()
+
+		// with the global Artee VPN config in hand connect (just a connection, no stream yet) Signal
+		signalClient, err := connectToSignal(engineCtx, loginResp.GetArtee VPNConfig(), myPrivateKey)
+		if err != nil {
+			log.Error(err)
+			return wrapErr(err)
+		}
+		defer func() {
+			err = signalClient.Close()
+			if err != nil {
+				log.Warnf("failed closing Signal service client %v", err)
+			}
+		}()
+
+		signalNotifier := statusRecorderToSignalConnStateNotifier(c.statusRecorder)
+		signalClient.SetConnStateListener(signalNotifier)
+
+		c.statusRecorder.MarkSignalConnected()
+
+		relayURLs, token := parseRelayInfo(loginResp)
+		if override, ok := peer.OverrideRelayURLs(); ok {
+			log.Infof("overriding relay URLs from %s: %v", peer.EnvKeyNBHomeRelayServers, override)
+			relayURLs = override
+		}
+		peerConfig := loginResp.GetPeerConfig()
+
+		engineConfig, err := createEngineConfig(myPrivateKey, c.config, peerConfig, logPath)
+		if err != nil {
+			log.Error(err)
+			return wrapErr(err)
+		}
+		engineConfig.TempDir = mobileDependency.TempDir
+		// Leave StateDir empty when there is no state path so a disk-backed
+		// syncstore falls back to os.TempDir() instead of filepath.Dir("") == ".".
+		if path != "" {
+			engineConfig.StateDir = filepath.Dir(path)
+		}
+
+		relayManager := relayClient.NewManager(engineCtx, relayURLs, myPrivateKey.PublicKey().String(), engineConfig.MTU)
+		c.statusRecorder.SetRelayMgr(relayManager)
+		if len(relayURLs) > 0 {
+			if token != nil {
+				if err := relayManager.UpdateToken(token); err != nil {
+					log.Errorf("failed to update token: %s", err)
+					return wrapErr(err)
+				}
+			}
+			log.Infof("connecting to the Relay service(s): %s", strings.Join(relayURLs, ", "))
+			if err = relayManager.Serve(); err != nil {
+				log.Error(err)
+			}
+		}
+
+		checks := loginResp.GetChecks()
+
+		c.engineMutex.Lock()
+		engine := NewEngine(engineCtx, cancel, engineConfig, EngineServices{
+			SignalClient:   signalClient,
+			MgmClient:      mgmClient,
+			RelayManager:   relayManager,
+			StatusRecorder: c.statusRecorder,
+			Checks:         checks,
+			StateManager:   stateManager,
+			UpdateManager:  c.updateManager,
+			ClientMetrics:  c.clientMetrics,
+		}, mobileDependency)
+		engine.SetSyncResponsePersistence(c.persistSyncResponse)
+		c.engine = engine
+		c.engineMutex.Unlock()
+
+		if err := engine.Start(loginResp.GetArtee VPNConfig(), c.config.ManagementURL); err != nil {
+			log.Errorf("error while starting Artee VPN Connection Engine: %s", err)
+			return wrapErr(err)
+		}
+
+		log.Infof("Artee VPN engine started, the IP is: %s", peerConfig.GetAddress())
+		state.Set(StatusConnected)
+
+		if runningChan != nil {
+			select {
+			case <-runningChan:
+			default:
+				close(runningChan)
+			}
+		}
+
+		<-engineCtx.Done()
+
+		c.engineMutex.Lock()
+		c.engine = nil
+		c.engineMutex.Unlock()
+
+		log.Infof("ensuring wg interface is removed, Artee VPN engine context cancelled")
+
+		if err := engine.Stop(); err != nil {
+			log.Errorf("Failed to stop engine: %v", err)
+		}
+		c.statusRecorder.ClientTeardown()
+
+		backOff.Reset()
+
+		log.Info("stopped Artee VPN client")
+
+		if _, err := state.Status(); errors.Is(err, ErrResetConnection) {
+			return err
+		}
+
+		return nil
+	}
+
+	c.statusRecorder.ClientStart()
+	err = backoff.Retry(operation, backoff.WithContext(backOff, c.ctx))
+	if err != nil {
+		log.Debugf("exiting client retry loop due to unrecoverable error: %s", err)
+		if s, ok := gstatus.FromError(err); ok && (s.Code() == codes.PermissionDenied) {
+			state.Set(StatusNeedsLogin)
+			c.runCancel()
+		}
+		return err
+	}
+	return nil
+}
+
+func parseRelayInfo(loginResp *mgmProto.LoginResponse) ([]string, *hmac.Token) {
+	relayCfg := loginResp.GetArtee VPNConfig().GetRelay()
+	if relayCfg == nil {
+		return nil, nil
+	}
+
+	token := &hmac.Token{
+		Payload:   relayCfg.GetTokenPayload(),
+		Signature: relayCfg.GetTokenSignature(),
+	}
+
+	return relayCfg.GetUrls(), token
+}
+
+func (c *ConnectClient) Engine() *Engine {
+	if c == nil {
+		return nil
+	}
+	var e *Engine
+	c.engineMutex.Lock()
+	e = c.engine
+	c.engineMutex.Unlock()
+	return e
+}
+
+// GetLatestSyncResponse returns the latest sync response from the engine.
+func (c *ConnectClient) GetLatestSyncResponse() (*mgmProto.SyncResponse, error) {
+	engine := c.Engine()
+	if engine == nil {
+		return nil, errors.New("engine is not initialized")
+	}
+
+	syncResponse, err := engine.GetLatestSyncResponse()
+	if err != nil {
+		return nil, fmt.Errorf("get latest sync response: %w", err)
+	}
+
+	if syncResponse == nil {
+		return nil, errors.New("sync response is not available")
+	}
+
+	return syncResponse, nil
+}
+
+// SetLogLevel sets the log level for the firewall manager if the engine is running.
+func (c *ConnectClient) SetLogLevel(level log.Level) {
+	engine := c.Engine()
+	if engine == nil {
+		return
+	}
+
+	fwManager := engine.GetFirewallManager()
+	if fwManager != nil {
+		fwManager.SetLogLevel(level)
+	}
+}
+
+// Status returns the current client status
+func (c *ConnectClient) Status() StatusType {
+	if c == nil {
+		return StatusIdle
+	}
+	status, err := CtxGetState(c.ctx).Status()
+	if err != nil {
+		return StatusIdle
+	}
+
+	return status
+}
+
+func (c *ConnectClient) Stop() error {
+	c.runCancel()
+	if c.runStarted.Load() {
+		<-c.runExited
+	}
+	return nil
+}
+
+// SetSyncResponsePersistence enables or disables sync response persistence.
+// When enabled, the last received sync response will be stored and can be retrieved
+// through the Engine's GetLatestSyncResponse method. When disabled, any stored
+// sync response will be cleared.
+func (c *ConnectClient) SetSyncResponsePersistence(enabled bool) {
+	c.engineMutex.Lock()
+	c.persistSyncResponse = enabled
+	c.engineMutex.Unlock()
+
+	engine := c.Engine()
+	if engine != nil {
+		engine.SetSyncResponsePersistence(enabled)
+	}
+}
+
+// createEngineConfig converts configuration received from Management Service to EngineConfig
+func createEngineConfig(key wgtypes.Key, config *profilemanager.Config, peerConfig *mgmProto.PeerConfig, logPath string) (*EngineConfig, error) {
+	nm := false
+	if config.NetworkMonitor != nil {
+		nm = *config.NetworkMonitor
+	}
+	wgAddr, err := wgaddr.ParseWGAddress(peerConfig.Address)
+	if err != nil {
+		return nil, fmt.Errorf("parse overlay address %q: %w", peerConfig.Address, err)
+	}
+
+	if !config.DisableIPv6 {
+		if err := wgAddr.SetIPv6FromCompact(peerConfig.GetAddressV6()); err != nil {
+			log.Warn(err)
+		}
+	}
+
+	engineConf := &EngineConfig{
+		WgIfaceName:                   config.WgIface,
+		WgAddr:                        wgAddr,
+		IFaceBlackList:                config.IFaceBlackList,
+		DisableIPv6Discovery:          config.DisableIPv6Discovery,
+		WgPrivateKey:                  key,
+		WgPort:                        config.WgPort,
+		NetworkMonitor:                nm,
+		SSHKey:                        []byte(config.SSHKey),
+		NATExternalIPs:                config.NATExternalIPs,
+		CustomDNSAddress:              config.CustomDNSAddress,
+		RosenpassEnabled:              config.RosenpassEnabled,
+		RosenpassPermissive:           config.RosenpassPermissive,
+		ServerSSHAllowed:              util.ReturnBoolWithDefaultTrue(config.ServerSSHAllowed),
+		EnableSSHRoot:                 config.EnableSSHRoot,
+		EnableSSHSFTP:                 config.EnableSSHSFTP,
+		EnableSSHLocalPortForwarding:  config.EnableSSHLocalPortForwarding,
+		EnableSSHRemotePortForwarding: config.EnableSSHRemotePortForwarding,
+		DisableSSHAuth:                config.DisableSSHAuth,
+		DNSRouteInterval:              config.DNSRouteInterval,
+
+		DisableClientRoutes: config.DisableClientRoutes,
+		DisableServerRoutes: config.DisableServerRoutes || config.BlockInbound,
+		DisableDNS:          config.DisableDNS,
+		DisableFirewall:     config.DisableFirewall,
+		BlockLANAccess:      config.BlockLANAccess,
+		BlockInbound:        config.BlockInbound,
+		DisableIPv6:         config.DisableIPv6,
+
+		LazyConnectionEnabled: config.LazyConnectionEnabled,
+
+		MTU:     selectMTU(config.MTU, peerConfig.Mtu),
+		LogPath: logPath,
+
+		ProfileConfig: config,
+	}
+
+	if config.PreSharedKey != "" {
+		preSharedKey, err := wgtypes.ParseKey(config.PreSharedKey)
+		if err != nil {
+			return nil, err
+		}
+		engineConf.PreSharedKey = &preSharedKey
+	}
+
+	port, err := freePort(config.WgPort)
+	if err != nil {
+		return nil, err
+	}
+	if port != config.WgPort {
+		log.Infof("using %d as wireguard port: %d is in use", port, config.WgPort)
+	}
+	engineConf.WgPort = port
+
+	return engineConf, nil
+}
+
+func selectMTU(localMTU uint16, peerMTU int32) uint16 {
+	var finalMTU uint16 = iface.DefaultMTU
+	if localMTU > 0 {
+		finalMTU = localMTU
+	} else if peerMTU > 0 {
+		finalMTU = uint16(peerMTU)
+	}
+
+	// Set global DNS MTU
+	dns.SetCurrentMTU(finalMTU)
+
+	return finalMTU
+}
+
+// connectToSignal creates Signal Service client and established a connection
+func connectToSignal(ctx context.Context, wtConfig *mgmProto.Artee VPNConfig, ourPrivateKey wgtypes.Key) (*signal.GrpcClient, error) {
+	var sigTLSEnabled bool
+	if wtConfig.Signal.Protocol == mgmProto.HostConfig_HTTPS {
+		sigTLSEnabled = true
+	} else {
+		sigTLSEnabled = false
+	}
+
+	signalClient, err := signal.NewClient(ctx, wtConfig.Signal.Uri, ourPrivateKey, sigTLSEnabled)
+	if err != nil {
+		log.Errorf("error while connecting to the Signal Exchange Service %s: %s", wtConfig.Signal.Uri, err)
+		return nil, gstatus.Errorf(codes.FailedPrecondition, "failed connecting to Signal Service : %s", err)
+	}
+
+	return signalClient, nil
+}
+
+// loginToManagement creates Management ServiceDependencies client, establishes a connection, logs-in and gets a global Artee VPN config (signal, turn, stun hosts, etc)
+func loginToManagement(ctx context.Context, client mgm.Client, pubSSHKey []byte, config *profilemanager.Config) (*mgmProto.LoginResponse, error) {
+	sysInfo := system.GetInfo(ctx)
+	sysInfo.SetFlags(
+		config.RosenpassEnabled,
+		config.RosenpassPermissive,
+		config.ServerSSHAllowed,
+		config.DisableClientRoutes,
+		config.DisableServerRoutes,
+		config.DisableDNS,
+		config.DisableFirewall,
+		config.BlockLANAccess,
+		config.BlockInbound,
+		config.DisableIPv6,
+		config.LazyConnectionEnabled,
+		config.EnableSSHRoot,
+		config.EnableSSHSFTP,
+		config.EnableSSHLocalPortForwarding,
+		config.EnableSSHRemotePortForwarding,
+		config.DisableSSHAuth,
+	)
+	return client.Login(sysInfo, pubSSHKey, config.DNSLabels)
+}
+
+func statusRecorderToMgmConnStateNotifier(statusRecorder *peer.Status) mgm.ConnStateNotifier {
+	var sri interface{} = statusRecorder
+	mgmNotifier, _ := sri.(mgm.ConnStateNotifier)
+	return mgmNotifier
+}
+
+func statusRecorderToSignalConnStateNotifier(statusRecorder *peer.Status) signal.ConnStateNotifier {
+	var sri interface{} = statusRecorder
+	notifier, _ := sri.(signal.ConnStateNotifier)
+	return notifier
+}
+
+// freePort attempts to determine if the provided port is available, if not it will ask the system for a free port.
+func freePort(initPort int) (int, error) {
+	addr := net.UDPAddr{Port: initPort}
+
+	conn, err := net.ListenUDP("udp", &addr)
+	if err == nil {
+		returnPort := conn.LocalAddr().(*net.UDPAddr).Port
+		closeConnWithLog(conn)
+		return returnPort, nil
+	}
+
+	// if the port is already in use, ask the system for a free port
+	addr.Port = 0
+	conn, err = net.ListenUDP("udp", &addr)
+	if err != nil {
+		return 0, fmt.Errorf("unable to get a free port: %v", err)
+	}
+
+	udpAddr, ok := conn.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		return 0, errors.New("wrong address type when getting a free port")
+	}
+	closeConnWithLog(conn)
+	return udpAddr.Port, nil
+}
+
+func closeConnWithLog(conn *net.UDPConn) {
+	startClosing := time.Now()
+	err := conn.Close()
+	if err != nil {
+		log.Warnf("closing probe port %d failed: %v. Artee VPN will still attempt to use this port for connection.", conn.LocalAddr().(*net.UDPAddr).Port, err)
+	}
+	if time.Since(startClosing) > time.Second {
+		log.Warnf("closing the testing port %d took %s. Usually it is safe to ignore, but continuous warnings may indicate a problem.", conn.LocalAddr().(*net.UDPAddr).Port, time.Since(startClosing))
+	}
+}
+

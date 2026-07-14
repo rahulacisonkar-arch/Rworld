@@ -1,0 +1,7 @@
+export const DEFAULT_PORTS = {
+  CORE_BACKEND: 3000,
+  AI_SERVICE: 8000,
+  EMAIL_SERVICE: 3001
+};
+
+export const DEFAULT_BBOX = [0, 0, 512, 512];

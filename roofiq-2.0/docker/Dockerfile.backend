@@ -1,0 +1,17 @@
+# Dockerfile.backend
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY apps/backend-core/package*.json ./apps/backend-core/
+RUN cd apps/backend-core && npm install
+COPY apps/backend-core ./apps/backend-core
+RUN cd apps/backend-core && npx prisma generate && npm run build
+
+FROM node:18-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder /app/apps/backend-core/dist ./dist
+COPY --from=builder /app/apps/backend-core/package*.json ./
+COPY --from=builder /app/apps/backend-core/node_modules ./node_modules
+COPY --from=builder /app/apps/backend-core/prisma ./prisma
+EXPOSE 5000
+CMD ["node", "dist/index.js"]

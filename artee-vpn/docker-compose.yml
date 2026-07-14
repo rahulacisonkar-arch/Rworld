@@ -1,0 +1,160 @@
+# ============================================================
+#  ARTEE VPN — Docker Compose (with PHP 7.0.1 + MySQL)
+#  Replaces the original docker-compose.yml
+# ============================================================
+
+version: "3.8"
+
+networks:
+  artee_vpn_network:
+    driver: bridge
+
+volumes:
+  artee_mgmt_data:
+  artee_signal_data:
+  artee_caddy_data:
+  artee_caddy_config:
+  artee_coturn_data:
+  artee_mysql_data:
+
+services:
+
+  # ─────────────────────────────────────────────────
+  # 1. MySQL 5.7 Database
+  # ─────────────────────────────────────────────────
+  mysql:
+    image: mysql:5.7
+    container_name: artee_mysql
+    restart: unless-stopped
+    networks:
+      - artee_vpn_network
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE:      ${DB_NAME:-arteevpn}
+      MYSQL_USER:          ${DB_USER:-arteevpn_user}
+      MYSQL_PASSWORD:      ${DB_PASS:-arteevpn_password}
+    volumes:
+      - artee_mysql_data:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ─────────────────────────────────────────────────
+  # 2. PHP 7.0 + Apache Web Portal
+  # ─────────────────────────────────────────────────
+  portal:
+    build:
+      context: .
+      dockerfile: Dockerfile.php
+    container_name: artee_portal
+    restart: unless-stopped
+    networks:
+      - artee_vpn_network
+    environment:
+      DB_HOST:     mysql
+      DB_PORT:     3306
+      DB_NAME:     ${DB_NAME:-arteevpn}
+      DB_USER:     ${DB_USER:-arteevpn_user}
+      DB_PASS:     ${DB_PASS:-arteevpn_password}
+      APP_URL:     https://${NETBIRD_DOMAIN:-vpn.artee.com}
+      APP_ENV:     production
+      NETBIRD_API_URL: http://management:33073
+    volumes:
+      - ./public:/var/www/html
+      - ./app:/var/www/app
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ─────────────────────────────────────────────────
+  # 3. NetBird Management Server
+  # ─────────────────────────────────────────────────
+  management:
+    image: netbirdio/management:latest
+    container_name: artee_management
+    restart: unless-stopped
+    networks:
+      - artee_vpn_network
+    ports:
+      - "${NETBIRD_MGMT_API_PORT:-33073}:33073"
+    volumes:
+      - artee_mgmt_data:/var/lib/netbird
+      - ./config/management.json:/etc/netbird/management.json:ro
+    command:
+      - --port=33073
+      - --log-file=console
+      - --log-level=info
+      - --disable-anonymous-metrics=true
+      - --single-account-mode-domain=${NETBIRD_MGMT_SINGLE_ACCOUNT_MODE_DOMAIN:-artee.com}
+      - --dns-domain=${NETBIRD_MANAGEMENT_DNS_DOMAIN:-artee.internal}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:33073/api/v1/events"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  # ─────────────────────────────────────────────────
+  # 4. NetBird Signal Server
+  # ─────────────────────────────────────────────────
+  signal:
+    image: netbirdio/signal:latest
+    container_name: artee_signal
+    restart: unless-stopped
+    networks:
+      - artee_vpn_network
+    ports:
+      - "${NETBIRD_SIGNAL_PORT:-10000}:10000"
+    volumes:
+      - artee_signal_data:/var/lib/netbird
+    command:
+      - --port=10000
+      - --log-file=console
+      - --log-level=info
+
+  # ─────────────────────────────────────────────────
+  # 5. Coturn (STUN/TURN Relay)
+  # ─────────────────────────────────────────────────
+  coturn:
+    image: coturn/coturn:latest
+    container_name: artee_coturn
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - artee_coturn_data:/var/lib/coturn
+      - ./config/turnserver.conf:/etc/turnserver.conf:ro
+    command: ["-c", "/etc/turnserver.conf"]
+
+  # ─────────────────────────────────────────────────
+  # 6. Caddy Reverse Proxy (HTTPS / TLS)
+  # ─────────────────────────────────────────────────
+  caddy:
+    image: caddy:2-alpine
+    container_name: artee_caddy
+    restart: unless-stopped
+    networks:
+      - artee_vpn_network
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./config/Caddyfile:/etc/caddy/Caddyfile:ro
+      - artee_caddy_data:/data
+      - artee_caddy_config:/config
+    environment:
+      NETBIRD_DOMAIN:    ${NETBIRD_DOMAIN:-vpn.artee.com}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:-admin@artee.com}
+    depends_on:
+      - portal
+      - management
+      - signal

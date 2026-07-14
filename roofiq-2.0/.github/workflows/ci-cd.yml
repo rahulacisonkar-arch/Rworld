@@ -1,0 +1,78 @@
+name: RoofIQ AI 2.0 - CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # 1. Build and Test phase
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      # BUILD
+      - name: Build Measurement Engine
+        run: |
+          cd apps/measurement-engine
+          npm ci
+          npm run build
+
+      # TESTS
+      - name: Run Backend Integration Tests
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/roofiq_db"
+          REDIS_HOST: "localhost"
+          REDIS_PORT: 6379
+        run: |
+          cd apps/backend-core
+          npm ci
+          npm run build
+          npm test -- --passWithNoTests
+
+  # 2. Database Migration phase
+  database-migration:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      # DATABASE MIGRATION
+      - name: Run Prisma Database Migrations
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "Skipping migrations check (Local/Mock mode)."
+          else
+            cd apps/backend-core
+            npx prisma generate
+            npx prisma migrate deploy
+          fi
+
+  # 3. Deploy & Traffic Switch phase (Coolify Webhook Trigger)
+  deploy-to-coolify:
+    needs: database-migration
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      # DEPLOY & HEALTH CHECKS
+      - name: Trigger Coolify Webhook (Traffic Switch & Cleanup)
+        env:
+          COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK_URL }}
+        run: |
+          if [ -z "$COOLIFY_WEBHOOK" ]; then
+            echo "Warning: COOLIFY_WEBHOOK_URL is not set inside GitHub Secrets. Skipping deploy hook."
+          else
+            curl -X GET "$COOLIFY_WEBHOOK"
+            echo "Coolify deployment webhook triggered. Health checks and traffic routing initiated."
+          fi

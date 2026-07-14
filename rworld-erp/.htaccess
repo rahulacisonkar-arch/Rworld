@@ -1,0 +1,29 @@
+RewriteEngine On
+RewriteBase /rworld-erp/
+
+# Allow direct access to assets
+RewriteCond %{REQUEST_URI} ^/rworld-erp/assets/ [NC]
+RewriteRule ^ - [L]
+
+# Allow direct access to uploads
+RewriteCond %{REQUEST_URI} ^/rworld-erp/uploads/ [NC]
+RewriteRule ^ - [L]
+
+# Route everything else through index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php?url=$1 [QSA,L]
+
+# Security headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# Deny access to sensitive files
+<FilesMatch "\.(sql|ini|log|env|md|json|lock)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>

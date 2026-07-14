@@ -1,0 +1,512 @@
+//go:build android
+
+package android
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"slices"
+	"sync"
+	"time"
+
+	"golang.org/x/exp/maps"
+
+	log "github.com/sirupsen/logrus"
+
+	"github.com/Artee VPNio/Artee VPN/client/iface/device"
+	"github.com/Artee VPNio/Artee VPN/client/internal"
+	"github.com/Artee VPNio/Artee VPN/client/internal/debug"
+	"github.com/Artee VPNio/Artee VPN/client/internal/dns"
+	"github.com/Artee VPNio/Artee VPN/client/internal/listener"
+	"github.com/Artee VPNio/Artee VPN/client/internal/peer"
+	"github.com/Artee VPNio/Artee VPN/client/internal/profilemanager"
+	"github.com/Artee VPNio/Artee VPN/client/internal/routemanager"
+	"github.com/Artee VPNio/Artee VPN/client/internal/stdnet"
+	"github.com/Artee VPNio/Artee VPN/client/net"
+	"github.com/Artee VPNio/Artee VPN/client/system"
+	"github.com/Artee VPNio/Artee VPN/formatter"
+	"github.com/Artee VPNio/Artee VPN/route"
+	"github.com/Artee VPNio/Artee VPN/shared/management/domain"
+	types "github.com/Artee VPNio/Artee VPN/upload-server/types"
+)
+
+// ConnectionListener export internal Listener for mobile
+type ConnectionListener interface {
+	peer.Listener
+}
+
+// TunAdapter export internal TunAdapter for mobile
+type TunAdapter interface {
+	device.TunAdapter
+}
+
+// IFaceDiscover export internal IFaceDiscover for mobile
+type IFaceDiscover interface {
+	stdnet.ExternalIFaceDiscover
+}
+
+// NetworkChangeListener export internal NetworkChangeListener for mobile
+type NetworkChangeListener interface {
+	listener.NetworkChangeListener
+}
+
+// DnsReadyListener export internal dns ReadyListener for mobile
+type DnsReadyListener interface {
+	dns.ReadyListener
+}
+
+func init() {
+	formatter.SetLogcatFormatter(log.StandardLogger())
+}
+
+// Client struct manage the life circle of background service
+type Client struct {
+	tunAdapter            device.TunAdapter
+	iFaceDiscover         IFaceDiscover
+	recorder              *peer.Status
+	ctxCancel             context.CancelFunc
+	ctxCancelLock         *sync.Mutex
+	deviceName            string
+	uiVersion             string
+	networkChangeListener listener.NetworkChangeListener
+
+	stateMu       sync.RWMutex
+	connectClient *internal.ConnectClient
+	config        *profilemanager.Config
+	cacheDir      string
+}
+
+func (c *Client) setState(cfg *profilemanager.Config, cacheDir string, cc *internal.ConnectClient) {
+	c.stateMu.Lock()
+	defer c.stateMu.Unlock()
+	c.config = cfg
+	c.cacheDir = cacheDir
+	c.connectClient = cc
+}
+
+func (c *Client) stateSnapshot() (*profilemanager.Config, string, *internal.ConnectClient) {
+	c.stateMu.RLock()
+	defer c.stateMu.RUnlock()
+	return c.config, c.cacheDir, c.connectClient
+}
+
+func (c *Client) getConnectClient() *internal.ConnectClient {
+	c.stateMu.RLock()
+	defer c.stateMu.RUnlock()
+	return c.connectClient
+}
+
+// NewClient instantiate a new Client
+func NewClient(androidSDKVersion int, deviceName string, uiVersion string, tunAdapter TunAdapter, iFaceDiscover IFaceDiscover, networkChangeListener NetworkChangeListener) *Client {
+	execWorkaround(androidSDKVersion)
+
+	net.SetAndroidProtectSocketFn(tunAdapter.ProtectSocket)
+	return &Client{
+		deviceName:            deviceName,
+		uiVersion:             uiVersion,
+		tunAdapter:            tunAdapter,
+		iFaceDiscover:         iFaceDiscover,
+		recorder:              peer.NewRecorder(""),
+		ctxCancelLock:         &sync.Mutex{},
+		networkChangeListener: networkChangeListener,
+	}
+}
+
+// Run start the internal client. It is a blocker function
+func (c *Client) Run(platformFiles PlatformFiles, urlOpener URLOpener, isAndroidTV bool, dns *DNSList, dnsReadyListener DnsReadyListener, envList *EnvList) error {
+	exportEnvList(envList)
+
+	cfgFile := platformFiles.ConfigurationFilePath()
+	stateFile := platformFiles.StateFilePath()
+	cacheDir := platformFiles.CacheDir()
+
+	log.Infof("Starting client with config: %s, state: %s", cfgFile, stateFile)
+
+	cfg, err := profilemanager.UpdateOrCreateConfig(profilemanager.ConfigInput{
+		ConfigPath: cfgFile,
+	})
+	if err != nil {
+		return err
+	}
+	c.recorder.UpdateManagementAddress(cfg.ManagementURL.String())
+	c.recorder.UpdateRosenpass(cfg.RosenpassEnabled, cfg.RosenpassPermissive)
+
+	var ctx context.Context
+	//nolint
+	ctxWithValues := context.WithValue(context.Background(), system.DeviceNameCtxKey, c.deviceName)
+	//nolint
+	ctxWithValues = context.WithValue(ctxWithValues, system.UiVersionCtxKey, c.uiVersion)
+
+	c.ctxCancelLock.Lock()
+	ctx, c.ctxCancel = context.WithCancel(ctxWithValues)
+	defer c.ctxCancel()
+	c.ctxCancelLock.Unlock()
+
+	auth := NewAuthWithConfig(ctx, cfg)
+	err = auth.login(urlOpener, isAndroidTV)
+	if err != nil {
+		return err
+	}
+
+	// todo do not throw error in case of cancelled context
+	ctx = internal.CtxInitState(ctx)
+	connectClient := internal.NewConnectClient(ctx, cfg, c.recorder)
+	c.setState(cfg, cacheDir, connectClient)
+	return connectClient.RunOnAndroid(c.tunAdapter, c.iFaceDiscover, c.networkChangeListener, slices.Clone(dns.items), dnsReadyListener, stateFile, cacheDir)
+}
+
+// RunWithoutLogin we apply this type of run function when the backed has been started without UI (i.e. after reboot).
+// In this case make no sense handle registration steps.
+func (c *Client) RunWithoutLogin(platformFiles PlatformFiles, dns *DNSList, dnsReadyListener DnsReadyListener, envList *EnvList) error {
+	exportEnvList(envList)
+
+	cfgFile := platformFiles.ConfigurationFilePath()
+	stateFile := platformFiles.StateFilePath()
+	cacheDir := platformFiles.CacheDir()
+
+	log.Infof("Starting client without login with config: %s, state: %s", cfgFile, stateFile)
+
+	cfg, err := profilemanager.UpdateOrCreateConfig(profilemanager.ConfigInput{
+		ConfigPath: cfgFile,
+	})
+	if err != nil {
+		return err
+	}
+	c.recorder.UpdateManagementAddress(cfg.ManagementURL.String())
+	c.recorder.UpdateRosenpass(cfg.RosenpassEnabled, cfg.RosenpassPermissive)
+
+	var ctx context.Context
+	//nolint
+	ctxWithValues := context.WithValue(context.Background(), system.DeviceNameCtxKey, c.deviceName)
+	c.ctxCancelLock.Lock()
+	ctx, c.ctxCancel = context.WithCancel(ctxWithValues)
+	defer c.ctxCancel()
+	c.ctxCancelLock.Unlock()
+
+	// todo do not throw error in case of cancelled context
+	ctx = internal.CtxInitState(ctx)
+	connectClient := internal.NewConnectClient(ctx, cfg, c.recorder)
+	c.setState(cfg, cacheDir, connectClient)
+	return connectClient.RunOnAndroid(c.tunAdapter, c.iFaceDiscover, c.networkChangeListener, slices.Clone(dns.items), dnsReadyListener, stateFile, cacheDir)
+}
+
+// Stop the internal client and free the resources
+func (c *Client) Stop() {
+	c.ctxCancelLock.Lock()
+	defer c.ctxCancelLock.Unlock()
+	if c.ctxCancel == nil {
+		return
+	}
+
+	c.ctxCancel()
+}
+
+func (c *Client) RenewTun(fd int) error {
+	cc := c.getConnectClient()
+	if cc == nil {
+		return fmt.Errorf("engine not running")
+	}
+
+	e := cc.Engine()
+	if e == nil {
+		return fmt.Errorf("engine not initialized")
+	}
+
+	return e.RenewTun(fd)
+}
+
+// DebugBundle generates a debug bundle, uploads it, and returns the upload key.
+// It works both with and without a running engine.
+func (c *Client) DebugBundle(platformFiles PlatformFiles, anonymize bool) (string, error) {
+	cfg, cacheDir, cc := c.stateSnapshot()
+
+	// If the engine hasn't been started, load config from disk
+	if cfg == nil {
+		var err error
+		cfg, err = profilemanager.UpdateOrCreateConfig(profilemanager.ConfigInput{
+			ConfigPath: platformFiles.ConfigurationFilePath(),
+		})
+		if err != nil {
+			return "", fmt.Errorf("load config: %w", err)
+		}
+		cacheDir = platformFiles.CacheDir()
+	}
+
+	deps := debug.GeneratorDependencies{
+		InternalConfig: cfg,
+		StatusRecorder: c.recorder,
+		TempDir:        cacheDir,
+	}
+
+	if cc != nil {
+		resp, err := cc.GetLatestSyncResponse()
+		if err != nil {
+			log.Warnf("get latest sync response: %v", err)
+		}
+		deps.SyncResponse = resp
+
+		if e := cc.Engine(); e != nil {
+			if cm := e.GetClientMetrics(); cm != nil {
+				deps.ClientMetrics = cm
+			}
+		}
+	}
+
+	bundleGenerator := debug.NewBundleGenerator(
+		deps,
+		debug.BundleConfig{
+			Anonymize:         anonymize,
+			IncludeSystemInfo: true,
+		},
+	)
+
+	path, err := bundleGenerator.Generate()
+	if err != nil {
+		return "", fmt.Errorf("generate debug bundle: %w", err)
+	}
+	defer func() {
+		if err := os.Remove(path); err != nil {
+			log.Errorf("failed to remove debug bundle file: %v", err)
+		}
+	}()
+
+	uploadCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	key, err := debug.UploadDebugBundle(uploadCtx, types.DefaultBundleURL, cfg.ManagementURL.String(), path)
+	if err != nil {
+		return "", fmt.Errorf("upload debug bundle: %w", err)
+	}
+
+	log.Infof("debug bundle uploaded with key %s", key)
+	return key, nil
+}
+
+// SetTraceLogLevel configure the logger to trace level
+func (c *Client) SetTraceLogLevel() {
+	log.SetLevel(log.TraceLevel)
+}
+
+// SetInfoLogLevel configure the logger to info level
+func (c *Client) SetInfoLogLevel() {
+	log.SetLevel(log.InfoLevel)
+}
+
+// PeersList return with the list of the PeerInfos
+func (c *Client) PeersList() *PeerInfoArray {
+
+	fullStatus := c.recorder.GetFullStatus()
+
+	peerInfos := make([]PeerInfo, len(fullStatus.Peers))
+	for n, p := range fullStatus.Peers {
+		pi := PeerInfo{
+			IP:         p.IP,
+			IPv6:       p.IPv6,
+			FQDN:       p.FQDN,
+			ConnStatus: int(p.ConnStatus),
+			Routes:     PeerRoutes{routes: maps.Keys(p.GetRoutes())},
+		}
+		peerInfos[n] = pi
+	}
+	return &PeerInfoArray{items: peerInfos}
+}
+
+func (c *Client) Networks() *NetworkArray {
+	cc := c.getConnectClient()
+	if cc == nil {
+		log.Error("not connected")
+		return nil
+	}
+
+	engine := cc.Engine()
+	if engine == nil {
+		log.Error("could not get engine")
+		return nil
+	}
+
+	routeManager := engine.GetRouteManager()
+	if routeManager == nil {
+		log.Error("could not get route manager")
+		return nil
+	}
+
+	routeSelector := routeManager.GetRouteSelector()
+	if routeSelector == nil {
+		log.Error("could not get route selector")
+		return nil
+	}
+
+	routesMap := routeManager.GetClientRoutesWithNetID()
+	v6Merged := route.V6ExitMergeSet(routesMap)
+	resolvedDomains := c.recorder.GetResolvedDomainsStates()
+
+	networkArray := &NetworkArray{
+		items: make([]Network, 0),
+	}
+
+	for id, routes := range routesMap {
+		if len(routes) == 0 {
+			continue
+		}
+		if _, skip := v6Merged[id]; skip {
+			continue
+		}
+
+		network := c.buildNetwork(id, routes, routeSelector.IsSelected(id), resolvedDomains, v6Merged)
+		if network == nil {
+			continue
+		}
+		networkArray.Add(*network)
+	}
+	return networkArray
+}
+
+func (c *Client) buildNetwork(id route.NetID, routes []*route.Route, selected bool, resolvedDomains map[domain.Domain]peer.ResolvedDomainInfo, v6Merged map[route.NetID]struct{}) *Network {
+	r := routes[0]
+	netStr := r.Network.String()
+	if r.IsDynamic() {
+		netStr = r.Domains.SafeString()
+	}
+
+	routePeer, err := c.findBestRoutePeer(routes)
+	if err != nil {
+		log.Errorf("could not get peer info for route %s: %v", id, err)
+		return nil
+	}
+
+	network := &Network{
+		Name:       string(id),
+		Network:    netStr,
+		Peer:       routePeer.FQDN,
+		Status:     routePeer.ConnStatus.String(),
+		IsSelected: selected,
+		Domains:    c.getNetworkDomainsFromRoute(r, resolvedDomains),
+	}
+
+	if route.IsV4DefaultRoute(r.Network) && route.HasV6ExitPair(id, v6Merged) {
+		network.Network = "0.0.0.0/0, ::/0"
+	}
+
+	return network
+}
+
+// findBestRoutePeer returns the peer actively routing traffic for the given
+// HA route group. Falls back to the first connected peer, then the first peer.
+func (c *Client) findBestRoutePeer(routes []*route.Route) (peer.State, error) {
+	netStr := routes[0].Network.String()
+
+	fullStatus := c.recorder.GetFullStatus()
+	for _, p := range fullStatus.Peers {
+		if _, ok := p.GetRoutes()[netStr]; ok {
+			return p, nil
+		}
+	}
+
+	for _, r := range routes {
+		p, err := c.recorder.GetPeer(r.Peer)
+		if err != nil {
+			continue
+		}
+		if p.ConnStatus == peer.StatusConnected {
+			return p, nil
+		}
+	}
+	return c.recorder.GetPeer(routes[0].Peer)
+}
+
+// OnUpdatedHostDNS update the DNS servers addresses for root zones
+func (c *Client) OnUpdatedHostDNS(list *DNSList) error {
+	dnsServer, err := dns.GetServerDns()
+	if err != nil {
+		return err
+	}
+
+	dnsServer.OnUpdatedHostDNSServer(slices.Clone(list.items))
+	return nil
+}
+
+// SetConnectionListener set the network connection listener
+func (c *Client) SetConnectionListener(listener ConnectionListener) {
+	c.recorder.SetConnectionListener(listener)
+}
+
+// RemoveConnectionListener remove connection listener
+func (c *Client) RemoveConnectionListener() {
+	c.recorder.RemoveConnectionListener()
+}
+
+func (c *Client) toggleRoute(command routeCommand) error {
+	return command.toggleRoute()
+}
+
+func (c *Client) getRouteManager() (routemanager.Manager, error) {
+	client := c.getConnectClient()
+	if client == nil {
+		return nil, fmt.Errorf("not connected")
+	}
+
+	engine := client.Engine()
+	if engine == nil {
+		return nil, fmt.Errorf("engine is not running")
+	}
+
+	manager := engine.GetRouteManager()
+	if manager == nil {
+		return nil, fmt.Errorf("could not get route manager")
+	}
+
+	return manager, nil
+}
+
+func (c *Client) SelectRoute(route string) error {
+	manager, err := c.getRouteManager()
+	if err != nil {
+		return err
+	}
+
+	return c.toggleRoute(selectRouteCommand{route: route, manager: manager})
+}
+
+func (c *Client) DeselectRoute(route string) error {
+	manager, err := c.getRouteManager()
+	if err != nil {
+		return err
+	}
+
+	return c.toggleRoute(deselectRouteCommand{route: route, manager: manager})
+}
+
+// getNetworkDomainsFromRoute extracts domains from a route and enriches each domain
+// with its resolved IP addresses from the provided resolvedDomains map.
+func (c *Client) getNetworkDomainsFromRoute(route *route.Route, resolvedDomains map[domain.Domain]peer.ResolvedDomainInfo) NetworkDomains {
+	domains := NetworkDomains{}
+
+	for _, d := range route.Domains {
+		networkDomain := NetworkDomain{
+			Address: d.SafeString(),
+		}
+
+		if info, exists := resolvedDomains[d]; exists {
+			for _, prefix := range info.Prefixes {
+				networkDomain.addResolvedIP(prefix.Addr().String())
+			}
+		}
+
+		domains.Add(&networkDomain)
+	}
+
+	return domains
+}
+
+func exportEnvList(list *EnvList) {
+	if list == nil {
+		return
+	}
+	for k, v := range list.AllItems() {
+		if err := os.Setenv(k, v); err != nil {
+			log.Errorf("could not set env variable %s: %v", k, err)
+		}
+	}
+}
+

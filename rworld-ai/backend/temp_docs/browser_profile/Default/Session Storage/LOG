@@ -1,0 +1,17 @@
+2026/06/30-23:27:18.172 1cb4 Reusing MANIFEST C:\Users\Artee Admin\Desktop\browser-use-main\rworld-ai\backend\temp_docs\browser_profile\Default\Session Storage/MANIFEST-000001
+2026/06/30-23:27:18.178 1cb4 Recovering log #9
+2026/06/30-23:27:18.200 1cb4 Reusing old log C:\Users\Artee Admin\Desktop\browser-use-main\rworld-ai\backend\temp_docs\browser_profile\Default\Session Storage/000009.log 
+2026/06/30-23:30:03.157 1cb4 Level-0 table #13: started
+2026/06/30-23:30:03.166 1cb4 Level-0 table #13: 18665 bytes OK
+2026/06/30-23:30:03.174 1cb4 Delete type=0 #9
+2026/06/30-23:30:03.175 1cb4 Compacting 4@0 + 0@1 files
+2026/06/30-23:30:03.183 1cb4 Generated table #14@0: 6 keys, 5582 bytes
+2026/06/30-23:30:03.183 1cb4 Compacted 4@0 + 0@1 files => 5582 bytes
+2026/06/30-23:30:03.191 1cb4 compacted to: files[ 0 1 0 0 0 0 0 ]
+2026/06/30-23:30:03.191 1cb4 Delete type=2 #3
+2026/06/30-23:30:03.192 1cb4 Delete type=2 #6
+2026/06/30-23:30:03.192 1cb4 Delete type=2 #10
+2026/06/30-23:30:03.192 1cb4 Delete type=2 #13
+2026/06/30-23:40:38.173 1cb4 Level-0 table #16: started
+2026/06/30-23:40:38.185 1cb4 Level-0 table #16: 19471 bytes OK
+2026/06/30-23:40:38.194 1cb4 Delete type=0 #12

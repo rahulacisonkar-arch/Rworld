@@ -1,0 +1,74 @@
+# ============================================================
+#  ARTEE VPN — Caddy Reverse Proxy Configuration
+#  Handles HTTPS termination and routing to backend services
+# ============================================================
+
+# --- Environment variable substitution ---
+# Set NETBIRD_DOMAIN and LETSENCRYPT_EMAIL in your .env file
+
+{
+    email {$LETSENCRYPT_EMAIL}
+    # Uncomment below for testing with Let's Encrypt staging:
+    # acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+# ─── Main Domain — Artee VPN Portal + Dashboard ──────────────
+{$NETBIRD_DOMAIN} {
+    # Serve Artee VPN custom portal on root
+    handle / {
+        reverse_proxy portal:80
+    }
+
+    # Serve Artee VPN portal static assets
+    handle /assets/* {
+        reverse_proxy portal:80
+    }
+
+    # NetBird Management API (gRPC + REST)
+    handle /api/* {
+        reverse_proxy management:33073
+    }
+
+    # NetBird Management gRPC (used by desktop clients)
+    handle /management.ManagementService/* {
+        reverse_proxy h2c://management:33073
+    }
+
+    # NetBird Signal Server (WebRTC signaling)
+    handle /signalexchange.SignalExchange/* {
+        reverse_proxy h2c://signal:10000
+    }
+
+    # NetBird Web Dashboard (admin management UI)
+    handle /dashboard* {
+        reverse_proxy dashboard:80
+    }
+
+    # Health check endpoint
+    handle /health {
+        respond "Artee VPN is running!" 200
+    }
+
+    # Default: serve portal for everything else
+    handle {
+        reverse_proxy portal:80
+    }
+
+    # Logging
+    log {
+        output file /var/log/caddy/access.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+    }
+
+    # Security headers
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options SAMEORIGIN
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy strict-origin-when-cross-origin
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        -Server
+    }
+}

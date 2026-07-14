@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RWORLD SCRAPER™</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap');
+
+    :root {
+      --bg-color: #05050b;
+      --panel-bg: rgba(12, 12, 24, 0.85);
+      --border-color: rgba(255, 215, 0, 0.18);
+      --glow-color: #ffd700;
+      --accent-color: #ff9100;
+      --accent2-color: #9b51e0;
+      --text-color: #e3ebf3;
+      --console-bg: #030308;
+      --success-color: #00e676;
+      --error-color: #ff1744;
+      --warn-color: #ffca28;
+      --font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --mono-family: 'JetBrains Mono', 'Courier New', Courier, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: radial-gradient(ellipse at 30% 20%, rgba(23, 15, 3, 0.9) 0%, var(--bg-color) 70%);
+      color: var(--text-color);
+      font-family: var(--font-family);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+
+    header {
+      background: rgba(5, 5, 11, 0.97);
+      border-bottom: 1px solid var(--border-color);
+      padding: 10px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 30px rgba(255, 215, 0, 0.06);
+      flex-shrink: 0;
+    }
+
+    .logo {
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo img {
+      height: 38px;
+      width: 38px;
+      border-radius: 50%;
+      border: 1.5px solid var(--glow-color);
+      box-shadow: 0 0 14px rgba(255, 215, 0, 0.4);
+      object-fit: cover;
+    }
+
+    .logo-r { color: #fff; font-size: 22px; }
+    .logo-world { background: linear-gradient(90deg, #ffffff, #cfcfcf); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .logo-scraper { background: linear-gradient(90deg, var(--glow-color), var(--accent-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-left: 6px; }
+
+    .version-badge {
+      font-size: 9px;
+      background: rgba(255, 215, 0, 0.1);
+      padding: 2px 7px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 215, 0, 0.3);
+      color: var(--glow-color);
+      font-weight: 700;
+      letter-spacing: 1px;
+      margin-left: 8px;
+    }
+
+    .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+    .header-tagline { font-size: 11px; color: var(--glow-color); font-weight: 700; letter-spacing: 0.5px; text-shadow: 0 0 8px rgba(255, 215, 0, 0.3); }
+    .header-sub { font-size: 8px; color: rgba(255,255,255,0.35); font-weight: 600; letter-spacing: 2px; }
+
+    main {
+      flex: 1;
+      padding: 20px 24px;
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 20px;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .controls-panel {
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 20px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+    }
+
+    .panel-title {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--glow-color);
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255, 215, 0, 0.12);
+    }
+
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+
+    label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: rgba(224, 230, 237, 0.5);
+      font-weight: 600;
+    }
+
+    input[type="date"] {
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255, 215, 0, 0.15);
+      border-radius: 7px;
+      padding: 9px 12px;
+      color: #fff;
+      font-family: var(--mono-family);
+      font-size: 13px;
+      outline: none;
+      transition: all 0.25s;
+      width: 100%;
+      color-scheme: dark;
+    }
+
+    input[type="date"]:focus { border-color: var(--glow-color); box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.1); }
+
+    .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.06); margin: 4px 0; }
+
+    .btn {
+      width: 100%;
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 11px 16px;
+      font-family: var(--font-family);
+      font-weight: 700;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      cursor: pointer;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 9px;
+      transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+
+    .btn-open { border-color: rgba(0, 242, 254, 0.4); color: #00f2fe; }
+    .btn-open:hover { border-color: #00f2fe; box-shadow: 0 0 16px rgba(0, 242, 254, 0.25); }
+
+    .btn-scrape { border-color: rgba(155, 81, 224, 0.5); color: #bf8ff7; background: rgba(155, 81, 224, 0.07); }
+    .btn-scrape:hover:not(:disabled) { border-color: var(--accent2-color); box-shadow: 0 0 20px rgba(155, 81, 224, 0.35); background: rgba(155, 81, 224, 0.15); }
+
+    .btn-stop { border-color: rgba(255, 23, 68, 0.5); color: #ff6b8a; background: rgba(255, 23, 68, 0.07); }
+    .btn-stop:hover { border-color: var(--error-color); box-shadow: 0 0 16px rgba(255, 23, 68, 0.3); }
+
+    .btn-excel { border-color: rgba(0, 230, 118, 0.4); color: #00e676; background: rgba(0, 230, 118, 0.05); }
+    .btn-excel:hover { border-color: var(--success-color); box-shadow: 0 0 16px rgba(0, 230, 118, 0.25); }
+
+    .btn-pause { border-color: rgba(255, 145, 0, 0.5); color: #ffab40; background: rgba(255, 145, 0, 0.07); }
+    .btn-pause:hover { border-color: var(--accent-color); box-shadow: 0 0 16px rgba(255, 145, 0, 0.3); }
+
+    .switch-group { display: flex; align-items: center; justify-content: space-between; margin: 4px 0; }
+    .switch-group label { font-size: 10px; text-transform: uppercase; color: rgba(224, 230, 237, 0.5); font-weight: 600; letter-spacing: 1.5px; }
+    .switch { position: relative; display: inline-block; width: 44px; height: 22px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.08); border: 1.5px solid rgba(255,255,255,0.18); transition: .3s; border-radius: 22px; }
+    .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 2.5px; background-color: #fff; transition: .3s; border-radius: 50%; }
+    input:checked + .slider { background-color: rgba(155, 81, 224, 0.2); border-color: var(--accent2-color); }
+    input:checked + .slider:before { transform: translateX(22px); background-color: #bf8ff7; box-shadow: 0 0 8px rgba(155, 81, 224, 0.6); }
+
+    .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    .data-dir-box {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-family: var(--mono-family);
+      font-size: 9px;
+      color: rgba(255, 255, 255, 0.3);
+      word-break: break-all;
+      line-height: 1.5;
+    }
+
+    .data-dir-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255, 255, 255, 0.25); margin-bottom: 4px; font-weight: 600; }
+
+    .dashboard-panel { display: flex; flex-direction: column; gap: 16px; overflow: hidden; min-height: 0; }
+
+    .telemetry-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; flex-shrink: 0; }
+
+    .telemetry-card {
+      background: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .telemetry-label { font-size: 9px; text-transform: uppercase; color: rgba(255, 255, 255, 0.35); letter-spacing: 1px; font-weight: 700; }
+    .telemetry-value { font-size: 22px; font-weight: 900; color: #fff; letter-spacing: -0.5px; }
+    .telemetry-value.gold { color: var(--glow-color); text-shadow: 0 0 12px rgba(255, 215, 0, 0.3); }
+    .telemetry-value.success { color: var(--success-color); text-shadow: 0 0 10px rgba(0, 230, 118, 0.2); }
+    .telemetry-value.error { color: var(--error-color); text-shadow: 0 0 10px rgba(255, 23, 68, 0.2); }
+
+    .console-panel {
+      flex: 1;
+      background: var(--console-bg);
+      border: 1px solid rgba(255, 215, 0, 0.1);
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.9);
+      min-height: 0;
+    }
+
+    .console-header {
+      background: rgba(0, 0, 0, 0.5);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      padding: 9px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .console-indicator { display: flex; align-items: center; gap: 7px; }
+
+    .indicator-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: rgba(255, 23, 68, 0.7);
+      box-shadow: 0 0 6px rgba(255, 23, 68, 0.5);
+      transition: all 0.4s;
+    }
+
+    .indicator-dot.active {
+      background: var(--success-color);
+      box-shadow: 0 0 8px var(--success-color);
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    .console-body {
+      flex: 1;
+      padding: 12px 16px;
+      font-family: var(--mono-family);
+      font-size: 12px;
+      line-height: 1.6;
+      overflow-y: auto;
+      word-break: break-all;
+      min-height: 0;
+    }
+
+    .console-body::-webkit-scrollbar { width: 5px; }
+    .console-body::-webkit-scrollbar-track { background: transparent; }
+    .console-body::-webkit-scrollbar-thumb { background: rgba(255, 215, 0, 0.2); border-radius: 4px; }
+
+    .log-line { margin-bottom: 2px; opacity: 0.9; }
+    .log-info { color: #7dd3fc; }
+    .log-success { color: var(--success-color); }
+    .log-warning { color: var(--warn-color); }
+    .log-error { color: var(--error-color); }
+    .log-dim { color: rgba(255, 255, 255, 0.25); }
+
+    .btn-clear-log {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 4px;
+      padding: 3px 8px;
+      color: rgba(255, 255, 255, 0.3);
+      font-size: 9px;
+      font-family: var(--font-family);
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: all 0.2s;
+    }
+    .btn-clear-log:hover { border-color: rgba(255, 255, 255, 0.2); color: rgba(255, 255, 255, 0.6); }
+
+    .status-bar {
+      background: rgba(5, 5, 11, 0.95);
+      border-top: 1px solid rgba(255, 215, 0, 0.08);
+      padding: 5px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.3);
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+    }
+
+    .status-pill {
+      background: rgba(0, 230, 118, 0.1);
+      border: 1px solid rgba(0, 230, 118, 0.2);
+      color: var(--success-color);
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 9px;
+      letter-spacing: 1px;
+    }
+
+    .spacer { flex: 1; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <img src="./logo.png" alt="RWorld Logo" onerror="this.style.display='none'">
+      <div style="display:flex;align-items:baseline;">
+        <span class="logo-r">R</span><span class="logo-world">WORLD</span><span class="logo-scraper">SCRAPER™</span>
+      </div>
+      <div class="version-badge">v2.1.0</div>
+    </div>
+    <div class="header-right">
+      <div class="header-tagline">LOGISTICS SYSTEM ENGAGED</div>
+      <div class="header-sub">EXTRACT · CONNECT · EMPOWER</div>
+    </div>
+  </header>
+
+  <main>
+    <div class="controls-panel">
+      <div class="panel-title">⚡ System Controls</div>
+
+      <button id="btn-open-chrome" class="btn btn-open">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="4"></circle><line x1="21.17" y1="8" x2="12" y2="8"></line><line x1="3.95" y1="6.06" x2="8.54" y2="14"></line><line x1="10.88" y1="21.94" x2="15.46" y2="14"></line></svg>
+        Open Easyship
+      </button>
+
+      <hr class="divider">
+
+      <div class="form-group">
+        <label for="date-from">📅 Date From</label>
+        <input type="date" id="date-from">
+      </div>
+
+      <div class="form-group">
+        <label for="date-to">📅 Date To</label>
+        <input type="date" id="date-to">
+      </div>
+
+      <div class="switch-group">
+        <label for="toggle-fast-scrape">⚡ Fast Scrape (Row Only)</label>
+        <label class="switch">
+          <input type="checkbox" id="toggle-fast-scrape">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <hr class="divider">
+
+      <button id="btn-scrape" class="btn btn-scrape" disabled>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+        Scrape Data
+      </button>
+
+      <button id="btn-pause" class="btn btn-pause" style="display: none;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+        Pause Scraper
+      </button>
+
+      <button id="btn-stop" class="btn btn-stop" style="display: none;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>
+        Stop Scraper
+      </button>
+
+      <hr class="divider">
+
+      <button id="btn-excel" class="btn btn-excel">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        Open Excel File
+      </button>
+
+      <div class="spacer"></div>
+
+      <div>
+        <div class="data-dir-label">📁 Data Directory</div>
+        <div id="data-dir-path" class="data-dir-box">Loading...</div>
+      </div>
+    </div>
+
+    <div class="dashboard-panel">
+      <div class="telemetry-row">
+        <div class="telemetry-card">
+          <div class="telemetry-label">Extraction Status</div>
+          <div id="stat-status" class="telemetry-value gold" style="font-size:17px;letter-spacing:0;">READY</div>
+        </div>
+        <div class="telemetry-card">
+          <div class="telemetry-label">Processed</div>
+          <div id="stat-processed" class="telemetry-value success">0</div>
+        </div>
+        <div class="telemetry-card">
+          <div class="telemetry-label">Failed</div>
+          <div id="stat-failed" class="telemetry-value error">0</div>
+        </div>
+        <div class="telemetry-card">
+          <div class="telemetry-label">Current Page</div>
+          <div id="stat-page" class="telemetry-value">1</div>
+        </div>
+      </div>
+
+      <div class="console-panel">
+        <div class="console-header">
+          <span>📡 System Log Stream</span>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <button class="btn-clear-log" id="btn-clear-log">Clear</button>
+            <div class="console-indicator">
+              <div id="indicator-dot" class="indicator-dot"></div>
+              <span id="indicator-text">IDLE</span>
+            </div>
+          </div>
+        </div>
+        <div id="console-body" class="console-body">
+          <div class="log-line log-info">▶ RWORLD SCRAPER™ v2.1.0 initialized.</div>
+          <div class="log-line log-dim">─────────────────────────────────────────</div>
+          <div class="log-line log-info">① Click "Open Easyship" to launch Chrome</div>
+          <div class="log-line log-info">② Log in to your Easyship account</div>
+          <div class="log-line log-info">③ Set date range (optional) and click "Scrape Data"</div>
+          <div class="log-line log-info">④ Wait for extraction to complete</div>
+          <div class="log-line log-info">⑤ Click "Open Excel File" to view your data</div>
+          <div class="log-line log-dim">─────────────────────────────────────────</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="status-bar">
+    <span>RWORLD SCRAPER™ · Logistics Intelligence Platform</span>
+    <span class="status-pill">SYSTEM ONLINE</span>
+  </div>
+
+  <script>
+    // Environment detection: Electron vs standard browser
+    const isElectron = (typeof require !== 'undefined') && (function() {
+      try { return !!require('electron'); } catch(e) { return false; }
+    })();
+
+    let ipcRenderer = null;
+    if (isElectron) {
+      ipcRenderer = require('electron').ipcRenderer;
+    }
+
+    const btnOpenChrome = document.getElementById('btn-open-chrome');
+    const btnScrape     = document.getElementById('btn-scrape');
+    const btnStop       = document.getElementById('btn-stop');
+    const btnExcel      = document.getElementById('btn-excel');
+    const btnClearLog   = document.getElementById('btn-clear-log');
+    const dateFromInput = document.getElementById('date-from');
+    const dateToInput   = document.getElementById('date-to');
+    const statStatus    = document.getElementById('stat-status');
+    const statProcessed = document.getElementById('stat-processed');
+    const statFailed    = document.getElementById('stat-failed');
+    const statPage      = document.getElementById('stat-page');
+    const consoleBody   = document.getElementById('console-body');
+    const indicatorDot  = document.getElementById('indicator-dot');
+    const indicatorText = document.getElementById('indicator-text');
+    const dataDirPath   = document.getElementById('data-dir-path');
+
+    let totalProcessed = 0;
+    let totalFailed    = 0;
+    let currentPage    = 1;
+    const MAX_LOG_LINES = 500;
+
+    // Helper to send actions to backend
+    function sendAction(channel, data) {
+      if (isElectron) {
+        ipcRenderer.send(channel, data);
+      } else {
+        fetch('/api/' + channel, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data || {})
+        }).catch(err => appendLog('API Network Error: ' + err.message, 'error'));
+      }
+    }
+
+    // Initialize environment
+    if (isElectron) {
+      ipcRenderer.send('get-data-dir');
+      ipcRenderer.on('data-dir', function(e, dir) {
+        dataDirPath.innerText = dir;
+      });
+
+      ipcRenderer.on('chrome-status', function(e, data) {
+        handleChromeStatus(data);
+      });
+
+      ipcRenderer.on('scrape-log', function(e, text) {
+        handleScrapeLog(text);
+      });
+
+      ipcRenderer.on('scrape-status', function(e, data) {
+        handleScrapeStatus(data);
+      });
+    } else {
+      // Fetch data dir initially
+      fetch('/api/get-data-dir', { method: 'POST' })
+        .then(res => res.json())
+        .then(data => { dataDirPath.innerText = data.dir; })
+        .catch(() => { dataDirPath.innerText = 'Unknown'; });
+
+      // Connect to SSE Log stream
+      const sse = new EventSource('/api/logs/stream');
+      sse.onmessage = function(event) {
+        try {
+          const payload = JSON.parse(event.data);
+          const { channel, data } = payload;
+          if (channel === 'chrome-status') handleChromeStatus(data);
+          else if (channel === 'scrape-log') handleScrapeLog(data);
+          else if (channel === 'scrape-status') handleScrapeStatus(data);
+        } catch(e) {}
+      };
+      sse.onerror = function() {
+        appendLog('⚠ Disconnected from local server log stream. Retrying...', 'warning');
+      };
+    }
+
+    function ts() {
+      const n = new Date();
+      const p = (v) => String(v).padStart(2,'0');
+      return '[' + p(n.getHours()) + ':' + p(n.getMinutes()) + ':' + p(n.getSeconds()) + ']';
+    }
+
+    function appendLog(text, type) {
+      type = type || 'info';
+      const line = document.createElement('div');
+      line.className = 'log-line log-' + type;
+      line.innerText = ts() + ' ' + text.trim();
+      consoleBody.appendChild(line);
+      while (consoleBody.children.length > MAX_LOG_LINES) {
+        consoleBody.removeChild(consoleBody.firstChild);
+      }
+      consoleBody.scrollTop = consoleBody.scrollHeight;
+    }
+
+    function parseStats(text) {
+      if (text.includes('Progress saved')) {
+        var m = text.match(/"totalProcessed":\s*(\d+)/);
+        if (m) { totalProcessed = parseInt(m[1]); statProcessed.innerText = totalProcessed; }
+        m = text.match(/"totalFailed":\s*(\d+)/);
+        if (m) { totalFailed = parseInt(m[1]); statFailed.innerText = totalFailed; }
+        m = text.match(/"currentPage":\s*(\d+)/);
+        if (m) { currentPage = parseInt(m[1]); statPage.innerText = currentPage; }
+      } else if (text.includes('Resuming progress') || text.includes('Scanning shipment rows')) {
+        var m2 = text.match(/"(?:currentPage|page)":\s*(\d+)/);
+        if (m2) { currentPage = parseInt(m2[1]); statPage.innerText = currentPage; }
+      }
+    }
+
+    function handleChromeStatus(data) {
+      if (data.status === 'success' || data.status === 'running') {
+        appendLog(data.message, 'success');
+        btnScrape.removeAttribute('disabled');
+        statStatus.innerText = 'CHROME ACTIVE';
+      } else {
+        appendLog(data.message, 'error');
+        statStatus.innerText = 'CHROME ERROR';
+      }
+    }
+
+    function handleScrapeLog(text) {
+      var lower = text.toLowerCase();
+      var type = 'info';
+      if (lower.includes('error') || lower.includes('fail') || lower.includes('critical')) type = 'error';
+      else if (lower.includes('warn')) type = 'warning';
+      else if (lower.includes('success') || lower.includes('complete') || lower.includes('excel updated')) type = 'success';
+      else if (lower.includes('skipping duplicate') || lower.includes('stderr:')) type = 'dim';
+      appendLog(text.trim(), type);
+      parseStats(text);
+    }
+
+    function handleScrapeStatus(data) {
+      if (data.status === 'running') {
+        btnScrape.style.display = 'none';
+        btnStop.style.display = 'flex';
+        indicatorDot.className = 'indicator-dot active';
+        indicatorText.innerText = 'ACTIVE';
+        statStatus.innerText = 'EXTRACTING';
+        totalProcessed = 0; totalFailed = 0;
+        statProcessed.innerText = '0'; statFailed.innerText = '0'; statPage.innerText = '1';
+      } else {
+        btnScrape.style.display = 'flex';
+        btnStop.style.display = 'none';
+        indicatorDot.className = 'indicator-dot';
+        indicatorText.innerText = 'IDLE';
+        statStatus.innerText = data.code === 0 ? 'COMPLETE' : 'STOPPED';
+        appendLog(data.code === 0 ? '✅ Done! Click "Open Excel File" to view results.' : '⚠ Scraper stopped (code ' + data.code + ')', data.code === 0 ? 'success' : 'warning');
+      }
+    }
+
+    btnOpenChrome.addEventListener('click', function() {
+      appendLog('Launching Chrome with Easyship debug session...', 'info');
+      sendAction('launch-chrome');
+    });
+
+    btnScrape.addEventListener('click', function() {
+      var dateFrom = dateFromInput.value;
+      var dateTo   = dateToInput.value;
+      appendLog('Starting extraction... [' + (dateFrom || 'ANY') + ' → ' + (dateTo || 'ANY') + ']', 'info');
+      sendAction('start-scrape', { dateFrom: dateFrom, dateTo: dateTo });
+    });
+
+    btnStop.addEventListener('click', function() {
+      appendLog('⏹ Stopping scraper...', 'warning');
+      sendAction('stop-scrape');
+    });
+
+    btnExcel.addEventListener('click', function() {
+      appendLog('Opening Excel file...', 'info');
+      sendAction('open-excel');
+    });
+
+    btnClearLog.addEventListener('click', function() {
+      consoleBody.innerHTML = '';
+      appendLog('Log cleared.', 'dim');
+    });
+  </script>
+</body>
+</html>

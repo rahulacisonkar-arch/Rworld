@@ -1,0 +1,76 @@
+openapi: 3.0.3
+info:
+  title: Shekhar RoofIQ AI Core API
+  version: 2.0.0
+  description: REST API interface for RoofIQ AI 2.0 multi-tenant property analysis and planning portal.
+paths:
+  /api/v2/properties:
+    get:
+      summary: List or search properties
+      parameters:
+        - name: query
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A list of property records.
+    post:
+      summary: Create or resolve a property record (Geocode)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - address
+              properties:
+                address:
+                  type: string
+      responses:
+        '201':
+          description: Property resolved and registered.
+
+  /api/v2/properties/{id}/analyze:
+    post:
+      summary: Trigger AI analysis (SAM/YOLO segmenter, FEMA, NREL solar, NOAA)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '202':
+          description: Analysis task queued (BullMQ).
+
+  /api/v2/properties/{id}/permits:
+    get:
+      summary: Retrieve building permit records timeline
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Building permit registry records.
+
+  /api/v2/properties/{id}/solar:
+    get:
+      summary: Retrieve NREL-certified PVWatts solar estimates and yield chart data
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Solar potential output.
