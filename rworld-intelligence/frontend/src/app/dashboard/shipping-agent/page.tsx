@@ -156,19 +156,19 @@ export default function ShippingPage() {
 
     try {
       // 1. Fetch AI jobs
-      const jobsResp = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/shipping-agent/jobs", {
+      const jobsResp = await fetch("/api/shipping-agent/jobs", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (jobsResp.ok) setJobs(await jobsResp.json());
 
       // 2. Fetch Label Requests
-      const reqsResp = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/shipping-agent/requests", {
+      const reqsResp = await fetch("/api/shipping-agent/requests", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (reqsResp.ok) setRequests(await reqsResp.json());
 
       // 3. Fetch Stores
-      const storesResp = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/attendance/stores", {
+      const storesResp = await fetch("/api/attendance/stores", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (storesResp.ok) {
@@ -191,7 +191,7 @@ export default function ShippingPage() {
   useEffect(() => {
     if (selStoreId === 0) return;
     const token = localStorage.getItem("rworld_token");
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/shipping-agent/addresses?store_id=${selStoreId}`, {
+    fetch(`/api/shipping-agent/addresses?store_id=${selStoreId}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
@@ -206,7 +206,7 @@ export default function ShippingPage() {
     setAiMessage("");
     const token = localStorage.getItem("rworld_token");
     try {
-      const response = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/shipping-agent/jobs/ingest", {
+      const response = await fetch("/api/shipping-agent/jobs/ingest", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -234,7 +234,7 @@ export default function ShippingPage() {
     if (!selectedJob) return;
     const token = localStorage.getItem("rworld_token");
     try {
-      const response = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/shipping-agent/jobs/ocr", {
+      const response = await fetch("/api/shipping-agent/jobs/ocr", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -288,7 +288,7 @@ export default function ShippingPage() {
     const token = localStorage.getItem("rworld_token");
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/shipping-agent/rates?length=${pkgLen}&width=${pkgWid}&height=${pkgHgt}&weight_lbs=${pkgWgt}&ship_from_zip=${fromZip}&ship_to_zip=${toZip}`,
+        `/api/shipping-agent/rates?length=${pkgLen}&width=${pkgWid}&height=${pkgHgt}&weight_lbs=${pkgWgt}&ship_from_zip=${fromZip}&ship_to_zip=${toZip}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (response.ok) {
@@ -311,7 +311,7 @@ export default function ShippingPage() {
     const token = localStorage.getItem("rworld_token");
 
     try {
-      const response = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/shipping-agent/requests", {
+      const response = await fetch("/api/shipping-agent/requests", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -394,7 +394,7 @@ export default function ShippingPage() {
     const token = localStorage.getItem("rworld_token");
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/shipping-agent/requests/${reqId}/buy`, {
+      const response = await fetch(`/api/shipping-agent/requests/${reqId}/buy`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -429,7 +429,7 @@ export default function ShippingPage() {
     if (!confirm("Are you sure you want to cancel this shipping request?")) return;
     const token = localStorage.getItem("rworld_token");
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/shipping-agent/requests/${reqId}/cancel`, {
+      const response = await fetch(`/api/shipping-agent/requests/${reqId}/cancel`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });

@@ -101,7 +101,7 @@ export default function AttendancePage() {
     setLoading(true);
     try {
       // Stores
-      const storesResp = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/attendance/stores", {
+      const storesResp = await fetch("/api/attendance/stores", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (storesResp.ok) {
@@ -114,7 +114,7 @@ export default function AttendancePage() {
       }
 
       // Employees
-      const empResp = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/attendance/employees", {
+      const empResp = await fetch("/api/attendance/employees", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (empResp.ok) {
@@ -126,7 +126,7 @@ export default function AttendancePage() {
       }
 
       // Attendance Logs
-      const logsResp = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/attendance/logs", {
+      const logsResp = await fetch("/api/attendance/logs", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (logsResp.ok) {
@@ -134,7 +134,7 @@ export default function AttendancePage() {
       }
 
       // Payroll
-      const payrollResp = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/attendance/payroll", {
+      const payrollResp = await fetch("/api/attendance/payroll", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (payrollResp.ok) {
@@ -156,7 +156,7 @@ export default function AttendancePage() {
     setMessage("");
     const token = localStorage.getItem("rworld_token");
     try {
-      const response = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/attendance/employees", {
+      const response = await fetch("/api/attendance/employees", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -191,7 +191,7 @@ export default function AttendancePage() {
     setLogMessage("");
     const token = localStorage.getItem("rworld_token");
     try {
-      const response = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/attendance/logs/manual", {
+      const response = await fetch("/api/attendance/logs/manual", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -231,7 +231,7 @@ export default function AttendancePage() {
     formData.append("file", ocrFile);
 
     try {
-      const response = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/attendance/ocr", {
+      const response = await fetch("/api/attendance/ocr", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -257,7 +257,7 @@ export default function AttendancePage() {
     let successCount = 0;
     try {
       for (const shift of ocrParsedShifts) {
-        const response = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/attendance/logs/manual", {
+        const response = await fetch("/api/attendance/logs/manual", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

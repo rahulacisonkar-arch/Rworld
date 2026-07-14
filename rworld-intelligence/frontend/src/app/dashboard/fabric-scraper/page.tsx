@@ -25,7 +25,7 @@ export default function FabricScraperPage() {
   const fetchProducts = async () => {
     const token = localStorage.getItem("rworld_token");
     try {
-      const response = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/fabric-scraper/products", {
+      const response = await fetch("/api/fabric-scraper/products", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
@@ -47,7 +47,7 @@ export default function FabricScraperPage() {
     const token = localStorage.getItem("rworld_token");
 
     try {
-      const response = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/fabric-scraper/run", {
+      const response = await fetch("/api/fabric-scraper/run", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -69,7 +69,7 @@ export default function SettingsPage() {
             </div>
             <div className="flex justify-between items-center py-2 border-b border-gray-900">
               <span className="text-gray-400">API Connection URL</span>
-              <span className="text-cyan-400 font-mono">${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}</span>
+              <span className="text-cyan-400 font-mono"></span>
             </div>
           </div>
         </div>
