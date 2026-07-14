@@ -24,7 +24,7 @@ export default function RoofIQPage() {
   const fetchProjects = async () => {
     const token = localStorage.getItem("rworld_token");
     try {
-      const response = await fetch("http://localhost:8000/api/roofiq/projects", {
+      const response = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/roofiq/projects", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
@@ -46,7 +46,7 @@ export default function RoofIQPage() {
     const token = localStorage.getItem("rworld_token");
 
     try {
-      const response = await fetch("http://localhost:8000/api/roofiq/projects", {
+      const response = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/roofiq/projects", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

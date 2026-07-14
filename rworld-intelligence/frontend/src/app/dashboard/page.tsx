@@ -30,7 +30,7 @@ export default function DashboardPage() {
 
       try {
         // 1. Fetch ERP summary reports
-        const erpResponse = await fetch("http://localhost:8000/api/erp/reports/summary", {
+        const erpResponse = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/erp/reports/summary", {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (erpResponse.ok) {
@@ -39,7 +39,7 @@ export default function DashboardPage() {
         }
 
         // 2. Fetch Shipping agent jobs
-        const shippingResponse = await fetch("http://localhost:8000/api/shipping-agent/jobs", {
+        const shippingResponse = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/shipping-agent/jobs", {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (shippingResponse.ok) {
@@ -48,7 +48,7 @@ export default function DashboardPage() {
         }
 
         // 3. Fetch Attendance employees
-        const attResponse = await fetch("http://localhost:8000/api/attendance/employees", {
+        const attResponse = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/attendance/employees", {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (attResponse.ok) {
@@ -57,7 +57,7 @@ export default function DashboardPage() {
         }
 
         // 4. Fetch Utility bills spend summary
-        const utilResponse = await fetch("http://localhost:8000/api/utility/bills", {
+        const utilResponse = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/utility/bills", {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (utilResponse.ok) {

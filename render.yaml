@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: rworld-backend
+    runtime: python
+    rootDir: rworld-intelligence/backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: FRONTEND_URL
+        value: https://rahultejdeepa.dpdns.org
+      - key: PYTHON_VERSION
+        value: 3.11.0

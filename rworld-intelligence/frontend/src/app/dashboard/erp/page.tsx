@@ -164,7 +164,7 @@ export default function ERPPage() {
 
     try {
       // 1. Fetch Inventory
-      const invResponse = await fetch("http://localhost:8000/api/erp/inventory", {
+      const invResponse = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/erp/inventory", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (invResponse.ok) {
@@ -174,7 +174,7 @@ export default function ERPPage() {
       }
 
       // 2. Fetch Customers
-      const custResponse = await fetch("http://localhost:8000/api/erp/customers", {
+      const custResponse = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/erp/customers", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (custResponse.ok) {
@@ -184,7 +184,7 @@ export default function ERPPage() {
       }
 
       // 3. Fetch Orders
-      const ordResponse = await fetch("http://localhost:8000/api/erp/orders", {
+      const ordResponse = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/erp/orders", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (ordResponse.ok) {
@@ -194,13 +194,13 @@ export default function ERPPage() {
       }
 
       // 4. Fetch Returns
-      const retResponse = await fetch("http://localhost:8000/api/erp/returns", {
+      const retResponse = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/erp/returns", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (retResponse.ok) setReturns(await retResponse.json());
 
       // 5. Fetch POs
-      const poResponse = await fetch("http://localhost:8000/api/erp/purchase-orders", {
+      const poResponse = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/erp/purchase-orders", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (poResponse.ok) {
@@ -211,13 +211,13 @@ export default function ERPPage() {
       }
 
       // 6. Fetch GRNs
-      const grnResponse = await fetch("http://localhost:8000/api/erp/grn", {
+      const grnResponse = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/erp/grn", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (grnResponse.ok) setGrns(await grnResponse.json());
 
       // 7. Fetch active shift
-      const shiftResponse = await fetch("http://localhost:8000/api/erp/shifts/active", {
+      const shiftResponse = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/erp/shifts/active", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (shiftResponse.ok) {
@@ -226,22 +226,22 @@ export default function ERPPage() {
       }
 
       // 8. Fetch Reports
-      const plResp = await fetch("http://localhost:8000/api/erp/reports/pl", {
+      const plResp = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/erp/reports/pl", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (plResp.ok) setPlReport(await plResp.json());
 
-      const gstResp = await fetch("http://localhost:8000/api/erp/reports/gst", {
+      const gstResp = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/erp/reports/gst", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (gstResp.ok) setGstReport(await gstResp.json());
 
-      const stockResp = await fetch("http://localhost:8000/api/erp/reports/stock", {
+      const stockResp = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/erp/reports/stock", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (stockResp.ok) setStockReport(await stockResp.json());
 
-      const dbResp = await fetch("http://localhost:8000/api/erp/reports/daybook", {
+      const dbResp = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/erp/reports/daybook", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (dbResp.ok) setDaybook(await dbResp.json());
@@ -263,7 +263,7 @@ export default function ERPPage() {
     setInvMsg("");
     const token = localStorage.getItem("rworld_token");
     try {
-      const response = await fetch("http://localhost:8000/api/erp/inventory", {
+      const response = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/erp/inventory", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -287,7 +287,7 @@ export default function ERPPage() {
     setSalesMsg("");
     const token = localStorage.getItem("rworld_token");
     try {
-      const response = await fetch("http://localhost:8000/api/erp/orders", {
+      const response = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/erp/orders", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -313,7 +313,7 @@ export default function ERPPage() {
     setSalesMsg("");
     const token = localStorage.getItem("rworld_token");
     try {
-      const response = await fetch("http://localhost:8000/api/erp/returns", {
+      const response = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/erp/returns", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -337,7 +337,7 @@ export default function ERPPage() {
     setPurchMsg("");
     const token = localStorage.getItem("rworld_token");
     try {
-      const response = await fetch("http://localhost:8000/api/erp/purchase-orders", {
+      const response = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/erp/purchase-orders", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -361,7 +361,7 @@ export default function ERPPage() {
     setPurchMsg("");
     const token = localStorage.getItem("rworld_token");
     try {
-      const response = await fetch("http://localhost:8000/api/erp/grn", {
+      const response = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/erp/grn", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -385,7 +385,7 @@ export default function ERPPage() {
     setShiftMsg("");
     const token = localStorage.getItem("rworld_token");
     try {
-      const response = await fetch("http://localhost:8000/api/erp/shifts/open", {
+      const response = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/erp/shifts/open", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -409,7 +409,7 @@ export default function ERPPage() {
     setShiftMsg("");
     const token = localStorage.getItem("rworld_token");
     try {
-      const response = await fetch("http://localhost:8000/api/erp/shifts/close", {
+      const response = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/erp/shifts/close", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

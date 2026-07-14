@@ -85,7 +85,7 @@ export default function UtilityPage() {
     setLoading(true);
     try {
       // Stores
-      const storesResp = await fetch("http://localhost:8000/api/attendance/stores", {
+      const storesResp = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/attendance/stores", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (storesResp.ok) {
@@ -98,7 +98,7 @@ export default function UtilityPage() {
       }
 
       // Connections
-      const connResp = await fetch("http://localhost:8000/api/utility/connections", {
+      const connResp = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/utility/connections", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (connResp.ok) {
@@ -110,7 +110,7 @@ export default function UtilityPage() {
       }
 
       // Bills
-      const billsResp = await fetch("http://localhost:8000/api/utility/bills", {
+      const billsResp = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/utility/bills", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (billsResp.ok) {
@@ -118,7 +118,7 @@ export default function UtilityPage() {
       }
 
       // YoY Reports
-      const yoyResp = await fetch("http://localhost:8000/api/utility/reports/yoy", {
+      const yoyResp = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/utility/reports/yoy", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (yoyResp.ok) {
@@ -140,7 +140,7 @@ export default function UtilityPage() {
     setConnMessage("");
     const token = localStorage.getItem("rworld_token");
     try {
-      const response = await fetch("http://localhost:8000/api/utility/connections", {
+      const response = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/utility/connections", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -184,7 +184,7 @@ export default function UtilityPage() {
     formData.append("file", uploadFile);
 
     try {
-      const response = await fetch("http://localhost:8000/api/utility/bills/upload", {
+      const response = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/utility/bills/upload", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -208,7 +208,7 @@ export default function UtilityPage() {
   const handlePayBill = async (billId: number) => {
     const token = localStorage.getItem("rworld_token");
     try {
-      const response = await fetch(`http://localhost:8000/api/utility/bills/${billId}/pay`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/utility/bills/${billId}/pay`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
