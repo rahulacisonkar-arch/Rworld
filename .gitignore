@@ -20,15 +20,24 @@ venv/
 # Build files
 dist/
 
-# Data files
+# Data files (raw data only — NOT config/project files)
 *.gif
-*.txt
 *.pdf
 *.csv
-*.json
 *.jsonl
 *.log
 *.bak
+# Ignore raw data txt/json but NOT project config files
+!requirements.txt
+!package.json
+!package-lock.json
+!tsconfig.json
+!next.config.*
+!vercel.json
+!render.yaml
+!Procfile
+!*.config.js
+!*.config.ts
 
 # Secrets and sensitive files
 secrets.env
