@@ -4,6 +4,7 @@ import importlib.util
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.auth import router as auth_router
+from app.init_db import init_db
 
 app = FastAPI(
     title="RWorld Intelligence Platform API Gateway",
@@ -60,6 +61,9 @@ def load_dynamic_routers():
                         print(f"Successfully registered module router: [green]{item}[/green]")
                 except Exception as e:
                     print(f"Failed to load module router '{item}': {e}", file=sys.stderr)
+
+# Initialize database and tables
+init_db()
 
 # Load plugins on startup
 load_dynamic_routers()
