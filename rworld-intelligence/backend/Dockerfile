@@ -1,19 +1,21 @@
 FROM python:3.11-slim
 
-# Set working directory to /app/backend so relative paths work
-WORKDIR /app/backend
+WORKDIR /app
 
-# Copy requirements and install
-COPY requirements.txt .
+# Render's Docker build context = repo root
+# so all paths are relative to the repo root
+COPY rworld-intelligence/backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the entire rworld-intelligence project structure
-# so database/ directory is at /app/database/ (2 levels up from app/)
-COPY . /app/backend/
-# Create the database directory so _find_db_path() can locate it
+# Copy backend app code
+COPY rworld-intelligence/backend/app ./app
+
+# Copy modules directory
+COPY rworld-intelligence/modules ./modules
+
+# Create database directory (DB_PATH env var points here)
 RUN mkdir -p /app/database
 
-# Set env var so db.py always uses the right path
 ENV DB_PATH=/app/database/rworld.db
 
 EXPOSE 8000
