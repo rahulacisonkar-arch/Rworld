@@ -8,9 +8,19 @@ from passlib.context import CryptContext
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Match db.py exactly: 3 levels up from app/init_db.py
+# Local:  rworld-intelligence/backend/app -> rworld-intelligence/database/rworld.db
+# Render: /opt/render/.../rworld-intelligence/backend/app -> rworld-intelligence/database/rworld.db
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DB_DIR = os.path.join(BASE_DIR, "database")
 DB_PATH = os.path.join(DB_DIR, "rworld.db")
+
+# Fallback: if the above path doesn't exist and we're on Render,
+# create the DB relative to the current working directory
+if not os.path.exists(BASE_DIR):
+    BASE_DIR = os.getcwd()
+    DB_DIR = os.path.join(BASE_DIR, "database")
+    DB_PATH = os.path.join(DB_DIR, "rworld.db")
 
 
 def init_db():

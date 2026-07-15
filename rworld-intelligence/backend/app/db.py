@@ -1,7 +1,18 @@
 import sqlite3
 import os
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DB_PATH = os.path.join(BASE_DIR, "database", "rworld.db")
+
+def _find_db_path():
+    """Find the database directory by searching up from this file's location."""
+    candidate = os.path.abspath(__file__)
+    for _ in range(6):  # search up to 6 levels
+        candidate = os.path.dirname(candidate)
+        db_dir = os.path.join(candidate, "database")
+        if os.path.isdir(db_dir):
+            return os.path.join(db_dir, "rworld.db")
+    # Final fallback: use current working directory
+    return os.path.join(os.getcwd(), "database", "rworld.db")
+
+DB_PATH = _find_db_path()
 
 def get_db():
     """Returns a SQLite connection with dict_factory enabled for dictionary results"""
