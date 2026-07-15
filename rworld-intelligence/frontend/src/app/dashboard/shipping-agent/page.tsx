@@ -48,7 +48,7 @@ interface LabelRequest {
   ship_from_city: string;
   ship_from_state: string;
   ship_from_zip: string;
-  ship_from_phone: str;
+  ship_from_phone: string;
   ship_from_email?: string;
   ship_to_name: string;
   ship_to_company: string;
