@@ -1,0 +1,79 @@
+{
+    "bd7f1658205c9e2331f3aeb9d630db89": {
+        "lat": 42.6309946,
+        "lng": -71.3254876,
+        "formatted_address": "717, School Street, Highlands, Lowell, Middlesex County, Massachusetts, 01851, United States",
+        "place_id": 365334123,
+        "source": "nominatim"
+    },
+    "67ed47fb3b7785cf22fc89e2481a0099": {
+        "lat": 41.8611682,
+        "lng": -71.3743892,
+        "formatted_address": "717, School Street, Pawtucket, Providence County, Rhode Island, 02860, United States",
+        "place_id": 408233516,
+        "source": "nominatim"
+    },
+    "74748a2ef326fcaa6b328904072ee693": {
+        "lat": 41.8611682,
+        "lng": -71.3743892,
+        "formatted_address": "717, School Street, Pawtucket, Providence County, Rhode Island, 02860, United States",
+        "place_id": 401390420,
+        "source": "nominatim"
+    },
+    "f2640060f7f4c029a9ba3c39cf48964c": {
+        "lat": 42.084438,
+        "lng": -70.9250495,
+        "formatted_address": "Pond Street, Whitman, Plymouth County, Massachusetts, 02382, United States",
+        "place_id": 361044712,
+        "source": "nominatim"
+    },
+    "1fa88e1740605af10a29e999fac4b65a": {
+        "lat": 41.8587854,
+        "lng": -71.3743538,
+        "formatted_address": "721, School Street, Pawtucket, Providence County, Rhode Island, 02860, United States",
+        "place_id": 403201481,
+        "source": "nominatim"
+    },
+    "b4e1039dc4d5241b52ec9de0300ca9ab": {
+        "lat": 41.8609106,
+        "lng": -71.3743621,
+        "formatted_address": "727, School Street, Pawtucket, Providence County, Rhode Island, 02860, United States",
+        "place_id": 401378015,
+        "source": "nominatim"
+    },
+    "18ca239fe25239b53776e28e3dc78b5c": {
+        "lat": 41.8587854,
+        "lng": -71.3743538,
+        "formatted_address": "721, School Street, Pawtucket, Providence County, Rhode Island, 02860, United States",
+        "place_id": 401415586,
+        "source": "nominatim"
+    },
+    "ef2752daef4b0eea74eea37faeb43b31": {
+        "lat": 41.8663583,
+        "lng": -71.3735917,
+        "formatted_address": "7, Dunnell Lane, Pawtucket, Providence County, Rhode Island, 02860, United States",
+        "place_id": 401378033,
+        "source": "nominatim"
+    },
+    "e067259809b56578e14d5b177e5895f5": {
+        "lat": 41.8664173,
+        "lng": -71.3720512,
+        "formatted_address": "89, Dunnell Lane, Pawtucket, Providence County, Rhode Island, 02860, United States",
+        "place_id": 408628907,
+        "source": "nominatim"
+    },
+    "3d8ce0baad45bb39aaade714fda59af7": {
+        "lat": 41.8611682,
+        "lng": -71.3743892,
+        "formatted_address": "717, School Street, Pawtucket, Providence County, Rhode Island, 02860, United States",
+        "place_id": 400858427,
+        "source": "nominatim"
+    },
+    "b8a558c965390f9e3c1cc61ee9fe6dc9": {
+        "lat": 41.8655066,
+        "lng": -71.371433,
+        "formatted_address": "7, East Dunnell Lane, Pawtucket, Providence County, Rhode Island, 02860, United States",
+        "place_id": 408223696,
+        "source": "nominatim"
+    }
+}

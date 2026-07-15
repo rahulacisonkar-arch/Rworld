@@ -1,0 +1,7 @@
+From: store_chi@arteefabrics.com
+Subject: Shipping Order SO-98402
+Body: Please ship 1 carton to Jane Doe, 456 Broadway, New York, NY 99-100-invalidzip.
+Weight: 8.5 lbs
+Dimensions: 6x6x6
+Carrier Preference: UPS Overnight
+Special Instructions: Deliver before 10 AM.

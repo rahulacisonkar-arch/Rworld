@@ -1,0 +1,56 @@
+# ============================================================
+#  ARTEE VPN — NetBird Management Server Configuration
+#  Adjust IdP settings based on your identity provider
+# ============================================================
+{
+  "Stuns": [
+    {
+      "Proto": "udp",
+      "URI": "stun:vpn.artee.com:3478",
+      "Username": "",
+      "Password": null
+    }
+  ],
+  "Turns": [
+    {
+      "Proto": "udp",
+      "URI": "turn:vpn.artee.com:3478",
+      "Username": "arteevpn",
+      "Password": "change-this-to-a-strong-random-secret-in-production"
+    }
+  ],
+  "Signal": {
+    "Proto": "https",
+    "URI": "vpn.artee.com:443",
+    "Username": "",
+    "Password": null
+  },
+  "Datadir": "/var/lib/netbird/",
+  "HttpConfig": {
+    "Address": "0.0.0.0:33073",
+    "AuthIssuer": "",
+    "AuthAudience": "",
+    "OIDCConfigEndpoint": ""
+  },
+  "IdpManagerConfig": {
+    "ManagerType": "none",
+    "ClientConfig": {
+      "Issuer": "",
+      "TokenEndpoint": "",
+      "ClientID": "",
+      "ClientSecret": "",
+      "GrantType": "client_credentials"
+    }
+  },
+  "DeviceAuthorizationFlow": {
+    "Provider": "none",
+    "ProviderConfig": {
+      "ClientID": "",
+      "ClientSecret": "",
+      "Domain": "",
+      "Audience": "",
+      "TokenEndpoint": "",
+      "DeviceAuthEndpoint": ""
+    }
+  }
+}

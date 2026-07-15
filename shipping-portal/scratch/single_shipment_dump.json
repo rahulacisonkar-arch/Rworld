@@ -1,0 +1,224 @@
+{
+    "easyship_shipment_id": "ESUS339105720",
+    "buyer_regulatory_identifiers": {
+        "ein": null,
+        "ssn": null,
+        "vat_number": null
+    },
+    "consignee_tax_id": null,
+    "courier_service": {
+        "id": "4da3d8cf-d7e8-4d9b-9198-baf2029a92de",
+        "courier_id": "d6b1ce5e-ab50-436a-aeb6-4ad181fdebf5",
+        "easyship_courier_service": true,
+        "name": "UPS\u00ae Ground",
+        "umbrella_name": "UPS"
+    },
+    "created_at": "2026-06-16T19:40:49Z",
+    "currency": "USD",
+    "delivery_state": "not_created",
+    "destination_address": {
+        "city": "Loveland",
+        "company_name": "ARTEE FABRICS & HOME",
+        "contact_email": "cincinnati@arteefabricsandhome.com",
+        "contact_name": "TERRI",
+        "contact_phone": "5136835400",
+        "country_alpha2": "US",
+        "delivery_instructions": null,
+        "line_1": "9543 FIELDS ERTEL ROAD LOVELAND, OH",
+        "line_2": null,
+        "postal_code": "45140",
+        "state": "OH"
+    },
+    "eei_reference": null,
+    "incoterms": "DDU",
+    "insurance": {
+        "is_insured": false,
+        "insured_amount": 107.81,
+        "insured_currency": "USD"
+    },
+    "label_generated_at": "2026-06-16T19:40:53Z",
+    "label_paid_at": "2026-06-16T19:40:51Z",
+    "label_state": "generated",
+    "last_failure_http_response_messages": [],
+    "metadata": [],
+    "order_data": {
+        "buyer_notes": null,
+        "buyer_selected_courier_name": null,
+        "order_created_at": null,
+        "order_tag_list": [],
+        "platform_name": null,
+        "platform_order_number": null,
+        "seller_notes": null
+    },
+    "origin_address": {
+        "city": "High Point",
+        "company_name": "Europatex Inc.",
+        "contact_email": "inquiries@europatex.com",
+        "contact_name": "Mark Garber",
+        "contact_phone": "9738090680",
+        "country_alpha2": "US",
+        "line_1": "125 Henderson Street",
+        "line_2": "",
+        "postal_code": "27263",
+        "state": "NC"
+    },
+    "parcels": [
+        {
+            "box": {
+                "id": null,
+                "name": null,
+                "outer_dimensions": {
+                    "length": 16,
+                    "width": 11,
+                    "height": 3
+                },
+                "slug": null,
+                "type": "box",
+                "weight": 0
+            },
+            "id": "3117d625-8bcd-4242-b908-603374eb71f9",
+            "items": [
+                {
+                    "actual_weight": 1.3608,
+                    "category": "Home Decor",
+                    "contains_battery_pi966": false,
+                    "contains_battery_pi967": false,
+                    "contains_liquids": false,
+                    "declared_currency": "USD",
+                    "declared_customs_value": 100,
+                    "description": "Fabrics & Home Logistics Items",
+                    "dimensions": {
+                        "length": 0,
+                        "width": 0,
+                        "height": 0
+                    },
+                    "hs_code": null,
+                    "id": "b6f0e5fb-f84b-4968-ae7b-11c0166fd093",
+                    "origin_country_alpha2": null,
+                    "origin_currency": "USD",
+                    "origin_customs_value": 100,
+                    "quantity": 1,
+                    "sku": null
+                }
+            ],
+            "total_actual_weight": 1.3608,
+            "tracking_number": null
+        }
+    ],
+    "pickup_state": "not_requested",
+    "rates": [
+        {
+            "additional_services_surcharge": 0,
+            "available_handover_options": [
+                "dropoff",
+                "paid_pickup"
+            ],
+            "cost_rank": 1,
+            "courier_remarks": null,
+            "courier_service": {
+                "courier_id": "d6b1ce5e-ab50-436a-aeb6-4ad181fdebf5",
+                "id": "4da3d8cf-d7e8-4d9b-9198-baf2029a92de",
+                "logo": null,
+                "name": "UPS\u00ae Ground",
+                "umbrella_name": "UPS"
+            },
+            "currency": "USD",
+            "ddp_handling_fee": 0,
+            "delivery_time_rank": 1,
+            "description": null,
+            "discount": {
+                "amount": 0,
+                "origin_amount": 0
+            },
+            "easyship_rating": null,
+            "estimated_import_duty": 0,
+            "estimated_import_tax": 0,
+            "fuel_surcharge": 0,
+            "full_description": null,
+            "import_duty_charge": 0,
+            "import_tax_charge": 0,
+            "import_tax_non_chargeable": 0,
+            "incoterms": "DDU",
+            "insurance_fee": 0,
+            "is_above_threshold": false,
+            "max_delivery_time": 2,
+            "min_delivery_time": 2,
+            "minimum_pickup_fee": 0,
+            "other_surcharges": null,
+            "oversized_surcharge": 0,
+            "payment_recipient": "Easyship",
+            "provincial_sales_tax": 0,
+            "rates_in_origin_currency": null,
+            "remote_area_surcharge": 0,
+            "remote_area_surcharges": null,
+            "residential_discounted_fee": null,
+            "residential_full_fee": null,
+            "sales_tax": 0,
+            "shipment_charge": 7.81,
+            "shipment_charge_total": 7.81,
+            "total_charge": 7.81,
+            "tracking_rating": 3,
+            "value_for_money_rank": 1,
+            "warehouse_handling_fee": 0
+        }
+    ],
+    "regulatory_identifiers": {
+        "eori": null,
+        "ioss": null,
+        "vat_number": null
+    },
+    "return": false,
+    "return_address": {
+        "city": "High Point",
+        "company_name": "Europatex Inc.",
+        "contact_email": "inquiries@europatex.com",
+        "contact_name": "Mark Garber",
+        "contact_phone": "9738090680",
+        "country_alpha2": "US",
+        "line_1": "125 Henderson Street",
+        "line_2": "",
+        "postal_code": "27263",
+        "state": "NC"
+    },
+    "sender_address": {
+        "city": "High Point",
+        "company_name": "Europatex Inc.",
+        "contact_email": "inquiries@europatex.com",
+        "contact_name": "Mark Garber",
+        "contact_phone": "9738090680",
+        "country_alpha2": "US",
+        "line_1": "125 Henderson Street",
+        "line_2": "",
+        "postal_code": "27263",
+        "state": "NC"
+    },
+    "set_as_residential": false,
+    "shipment_state": "created",
+    "shipping_documents": [
+        {
+            "base64_encoded_strings": [],
+            "category": "label",
+            "format": "url",
+            "page_size": "a4",
+            "required": true,
+            "url": "https:\/\/api.easyship.com\/shipment\/v1\/shipments\/b47164ba-3867-4a4e-8814-34580d3804a0\/shipping_documents\/label?page_size=a4"
+        }
+    ],
+    "shipping_settings": {
+        "b13a_filing": null,
+        "label_customization_fields": []
+    },
+    "tracking_page_url": "https:\/\/www.trackmyshipment.co\/shipment-tracking\/ESUS339105720",
+    "trackings": [
+        {
+            "alternate_tracking_number": null,
+            "handler": "ups",
+            "leg_number": 1,
+            "local_tracking_number": null,
+            "tracking_number": "1Z0K43R30318107939",
+            "tracking_state": "active"
+        }
+    ],
+    "updated_at": "2026-06-16T19:46:57Z",
+    "warehouse_state": "none"
+}

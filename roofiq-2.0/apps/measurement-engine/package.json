@@ -1,0 +1,17 @@
+{
+  "name": "roofiq-measurement-engine",
+  "version": "2.0.0",
+  "description": "RoofIQ AI 2.0 Mathematics and Roof Plane Geometry Engine",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "typescript": "^5.4.5"
+  }
+}

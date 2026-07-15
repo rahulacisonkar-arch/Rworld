@@ -1,0 +1,7 @@
+From: store_atl@arteefabrics.com
+Subject: Duplicate Transfer Request SO-90302
+Body: Duplicate request to check validation rules.
+Need 2 boxes sent to Rajesh Kumar, 100 Peachtree St, Atlanta, GA 30303.
+Weight: 15.4 lbs
+Dimensions: 12x10x8
+Carrier Preference: FedEx Ground

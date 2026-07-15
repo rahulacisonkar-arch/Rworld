@@ -1,0 +1,89 @@
+{
+  "name": "easyship-shipment-extraction-bot",
+  "version": "1.0.0",
+  "description": "Production-ready Easyship shipment extraction bot using Playwright, TypeScript, and ExcelJS.",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc && node -e \"require('fs').copyFileSync('src/renderer.html', 'dist/renderer.html'); require('fs').copyFileSync('src/logo.png', 'dist/logo.png')\"",
+    "start": "npm run build && node dist/index.js",
+    "verify": "npm run build && node dist/verify.js",
+    "save-extracted": "npm run build && node dist/save_extracted.js",
+    "test": "playwright test",
+    "electron:dev": "npm run build && electron .",
+    "dist": "npm run build && electron-builder"
+  },
+  "build": {
+    "appId": "com.rworld.scraper",
+    "productName": "RWORLD SCRAPER",
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/playwright/**",
+      "node_modules/playwright-core/**",
+      "node_modules/@playwright/**",
+      "node_modules/exceljs/**",
+      "node_modules/winston/**",
+      "node_modules/dotenv/**",
+      "dist/index.js",
+      "dist/scraper.js",
+      "dist/excel.js",
+      "dist/config.js",
+      "dist/logger.js",
+      "dist/progress.js",
+      "dist/selectors.js",
+      "dist/types.js"
+    ],
+    "extraResources": [
+      {
+        "from": "dist/",
+        "to": "scraper/",
+        "filter": [
+          "index.js",
+          "scraper.js",
+          "excel.js",
+          "config.js",
+          "logger.js",
+          "progress.js",
+          "selectors.js",
+          "types.js"
+        ]
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "src/logo.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "files": [
+      "dist/**/*",
+      "src/renderer.html",
+      "src/logo.png",
+      "package.json",
+      "node_modules/**/*"
+    ]
+  },
+  "keywords": [
+    "playwright",
+    "scraper",
+    "easyship",
+    "exceljs"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "exceljs": "^4.4.0",
+    "playwright": "^1.44.1",
+    "winston": "^3.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "electron": "^42.4.0",
+    "electron-builder": "^26.15.2",
+    "typescript": "^5.4.5"
+  }
+}

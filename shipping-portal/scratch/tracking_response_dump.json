@@ -1,0 +1,31 @@
+{
+    "shipments": [
+        {
+            "easyship_shipment_id": "ESUS339105720",
+            "destination_country_alpha2": "US",
+            "eta_date": null,
+            "origin_country_alpha2": "US",
+            "platform_order_number": null,
+            "status": "Label Ready",
+            "tracking_page_url": "https:\/\/www.trackmyshipment.co\/shipment-tracking\/ESUS339105720",
+            "trackings": [
+                {
+                    "alternate_tracking_number": null,
+                    "handler": "ups",
+                    "leg_number": 1,
+                    "local_tracking_number": null,
+                    "tracking_number": "1Z0K43R30318107939",
+                    "tracking_state": "active"
+                }
+            ]
+        }
+    ],
+    "meta": {
+        "pagination": {
+            "page": 1,
+            "next": null,
+            "count": 1
+        },
+        "request_id": "b698e1ab-255a-4b3b-8c19-da74f99a9770"
+    }
+}

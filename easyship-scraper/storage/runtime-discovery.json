@@ -1,0 +1,26 @@
+{
+  "rowSelectors": [
+    "[role=\"table\"] div[role=\"row\"]"
+  ],
+  "detailSelectors": [
+    ".modal:has-text(\"Shipment ID:\"), .modal-content:has-text(\"Shipment ID:\")"
+  ],
+  "paginationSelectors": [
+    "button:has(svg path[d*=\"M6.653 15.607\"]), button[aria-label=\"Next page\"], button:has-text(\"Next\"), .pagination-next"
+  ],
+  "fieldSelectors": {
+    "vendorStore": "text=/Store|Vendor|Shop/i",
+    "date": "text=/Created At|Date/i",
+    "trackingNo": "text=/Tracking Number|Tracking No/i",
+    "trackingNo2": "text=/Alternative Tracking|Secondary Tracking/i",
+    "refNo1": "text=/Reference 1|Ref No 1/i",
+    "refNo2": "text=/Reference 2|Ref No 2/i",
+    "receiver": "text=/Receiver|Recipient|Ship To/i",
+    "upsCharge": "text=/UPS Charge|Courier Charge/i",
+    "deliveryDate": "text=/Delivery Date|Estimated Delivery/i",
+    "shippingFrom": "text=/Sender|Ship From|Shipping From/i",
+    "weight": "text=/Weight/i",
+    "dimension": "text=/Dimensions|Dimension/i",
+    "freightChargeFromCmr": "text=/Freight Charge|CMR/i"
+  }
+}
